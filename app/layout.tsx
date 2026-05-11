@@ -32,6 +32,10 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const hasSupabaseEnv =
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+    Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
   return (
     <ClerkProvider
       appearance={{
@@ -77,7 +81,7 @@ export default function RootLayout({
             <GameOverBoundary>
               <main className="layout-canvas flex flex-1 flex-col">{children}</main>
             </GameOverBoundary>
-            <ChatDrawer />
+            {hasSupabaseEnv ? <ChatDrawer /> : null}
           </PostHogProvider>
         </body>
       </html>

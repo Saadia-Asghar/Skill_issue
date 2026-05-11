@@ -59,8 +59,13 @@ export function BlitzLobby({ personas, userId }: BlitzLobbyProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ personaSlug: persona.slug }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = json.hint
+          ? `${json.error ?? `HTTP ${res.status}`}\n\n→ ${json.hint}`
+          : (json.error ?? `HTTP ${res.status}`);
+        throw new Error(msg);
+      }
       if (json.status === "matched" && json.matchId) {
         setPhase("matched");
         router.push(`/blitz/${json.matchId}`);

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { generateUniqueRoomCode } from "@/lib/rooms/queries";
 import { ROOM_DEFAULT_STUDY_SECONDS, ROOM_PASS_THRESHOLD } from "@/lib/realtime/constants";
+import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import { getServerSupabase } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -50,9 +51,10 @@ export async function POST(req: Request) {
     .select("*")
     .single();
   if (error || !room) {
+    const h = humanizeSupabaseError(error?.message ?? "Failed to create room");
     return NextResponse.json(
-      { error: error?.message ?? "Failed to create room" },
-      { status: 500 },
+      { error: h.message, hint: h.hint },
+      { status: h.status },
     );
   }
 

@@ -97,9 +97,12 @@ export function RadioStudio({
           personaSlugs: picked,
         }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (!res.ok && res.status !== 502) {
-        throw new Error(json.error ?? `HTTP ${res.status}`);
+        const msg = json.hint
+          ? `${json.error ?? `HTTP ${res.status}`}\n\n→ ${json.hint}`
+          : (json.error ?? `HTTP ${res.status}`);
+        throw new Error(msg);
       }
       const list = await fetch("/api/radio").then((r) => r.json());
       setEpisodes(list.episodes ?? []);

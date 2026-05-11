@@ -10,6 +10,7 @@ import {
   updateEpisode,
   uploadEpisodeAudio,
 } from "@/lib/radio/queries";
+import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import {
   generateScript,
   resolvePersonas,
@@ -94,7 +95,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const episode = await createEpisode({ userId, title, sourceText: notes });
+  let episode;
+  try {
+    episode = await createEpisode({ userId, title, sourceText: notes });
+  } catch (e) {
+    const h = humanizeSupabaseError(e);
+    return NextResponse.json(
+      { error: h.message, hint: h.hint },
+      { status: h.status },
+    );
+  }
 
   // ---- Script ----
   await updateEpisode(episode.id, { status: "scripting" });

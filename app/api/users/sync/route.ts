@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { rankForXp } from "@/lib/rank";
+import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import { getServerSupabase } from "@/lib/supabase/server";
 
 /**
@@ -31,7 +32,11 @@ export async function POST() {
     .maybeSingle();
 
   if (selectError) {
-    return NextResponse.json({ error: selectError.message }, { status: 500 });
+    const h = humanizeSupabaseError(selectError.message);
+    return NextResponse.json(
+      { error: h.message, hint: h.hint },
+      { status: h.status },
+    );
   }
 
   const payload = {
@@ -49,7 +54,11 @@ export async function POST() {
       .select()
       .single();
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const h = humanizeSupabaseError(error.message);
+      return NextResponse.json(
+        { error: h.message, hint: h.hint },
+        { status: h.status },
+      );
     }
     return NextResponse.json({ user: data, created: true });
   }
@@ -66,7 +75,11 @@ export async function POST() {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const h = humanizeSupabaseError(error.message);
+    return NextResponse.json(
+      { error: h.message, hint: h.hint },
+      { status: h.status },
+    );
   }
   return NextResponse.json({ user: data, created: false });
 }

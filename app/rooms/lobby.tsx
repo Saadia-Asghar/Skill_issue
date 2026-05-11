@@ -29,8 +29,13 @@ export function RoomsLobby() {
           sourceText: sourceText || undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = json.hint
+          ? `${json.error ?? `HTTP ${res.status}`}\n\n→ ${json.hint}`
+          : (json.error ?? `HTTP ${res.status}`);
+        throw new Error(msg);
+      }
       router.push(`/rooms/${json.room.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create room");
@@ -48,8 +53,13 @@ export function RoomsLobby() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ code }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = json.hint
+          ? `${json.error ?? `HTTP ${res.status}`}\n\n→ ${json.hint}`
+          : (json.error ?? `HTTP ${res.status}`);
+        throw new Error(msg);
+      }
       router.push(`/rooms/${json.room.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to join room");

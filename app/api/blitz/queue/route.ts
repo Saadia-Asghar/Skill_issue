@@ -9,6 +9,7 @@ import {
   pickRandomConcept,
 } from "@/lib/blitz/queries";
 import { generateBlitzQuestions } from "@/lib/blitz/questions";
+import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import type { Json } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
@@ -88,9 +89,10 @@ export async function POST(req: Request) {
       questions,
     });
   } catch (e) {
+    const h = humanizeSupabaseError(e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "matchmaking failed" },
-      { status: 500 },
+      { error: h.message, hint: h.hint },
+      { status: h.status },
     );
   }
 

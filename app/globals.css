@@ -1,26 +1,432 @@
 @import "tailwindcss";
 
+/*
+ * ============================================================================
+ * Professor Decompose — ARCADE THEME
+ * ============================================================================
+ *
+ * Bright, saturated, cartoonish. Heavy bottom-borders for a chunky physical
+ * feel. Bouncy presses. Glowing pulses. Retro arcade typography via Fredoka.
+ *
+ * Palette
+ *   Neon Lime      #b6ff3c   the energetic accent (success, "go", health up)
+ *   Bold Purple    #8b5cf6   the brand backbone (Daily Drop, persona grid)
+ *   Bright Cyan    #22d3ee   secondary actions, links, focus rings
+ *   Hot Magenta    #f0386b   danger / streak break / loss
+ *   Sunshine Gold  #ffd62e   reward / XP / first place
+ *   Tangerine      #ff8a3d   warning / streak fire
+ *   Ocean Floor    #0b0820   background base
+ *   Deep Twilight  #161029   surface
+ *   Midnight Sky   #221a3a   surface-2
+ *
+ * Game depth pattern
+ *   Every interactive surface has a "skin" (top face) + a darker bottom border
+ *   that disappears on `:active` and the element shifts down 4px. That gives
+ *   the chunky physical-button feel of mobile arcade games (Subway Surfers,
+ *   Duolingo, Sandbox) without any 3D library.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* base canvas */
+  --background: #0b0820;
+  --foreground: #fff8e7;
+  --muted: #b8aedc;
+  --surface: #161029;
+  --surface-2: #221a3a;
+  --border: #3a2c66;
+
+  /* arcade palette */
+  --accent: #8b5cf6;       /* bold purple — brand */
+  --accent-2: #22d3ee;     /* bright cyan — secondary */
+  --lime: #b6ff3c;         /* neon lime — success / go */
+  --gold: #ffd62e;         /* sunshine — XP / first place */
+  --tangerine: #ff8a3d;    /* warning / streak */
+  --magenta: #f0386b;      /* hot magenta — danger / loss */
+  --silver: #d6e0ff;       /* second place */
+  --bronze: #f0a35a;       /* third place */
+
+  --danger: var(--magenta);
+  --success: var(--lime);
+  --warning: var(--tangerine);
+
+  /* typography */
+  --font-display: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
+
+  /* depth tokens — for "chunky physical button" pattern */
+  --depth-shadow: 0 6px 0 0 var(--depth-color, rgba(0, 0, 0, 0.5));
+  --depth-translate: translateY(0);
+  --depth-translate-active: translateY(4px);
+
+  /* radii */
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --radius-pill: 9999px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-lime: var(--lime);
+  --color-gold: var(--gold);
+  --color-tangerine: var(--tangerine);
+  --color-magenta: var(--magenta);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: var(--font-fredoka);
+  --font-display: var(--font-fredoka);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ----------------------------- base reset ------------------------------- */
+
+html,
+body {
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 15% 0%,
+      rgba(139, 92, 246, 0.28),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 55% at 90% 5%,
+      rgba(34, 211, 238, 0.22),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 60% 50% at 80% 110%,
+      rgba(182, 255, 60, 0.16),
+      transparent 60%
+    ),
+    var(--background);
+  color: var(--foreground);
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01";
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* default border colour for the legacy Tailwind v4 reset */
+* {
+  border-color: var(--border);
+}
+
+::selection {
+  background: var(--gold);
+  color: #1a0f00;
+}
+
+/* universal focus ring — visible affordance for keyboard users */
+:focus-visible {
+  outline: 3px solid var(--accent-2);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ----------------------------- glass card ------------------------------- */
+
+.glass {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.015)
+  );
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 50px -22px rgba(0, 0, 0, 0.7);
+}
+
+/* ---------------------- chunky arcade-button base ----------------------- */
+
+/*
+ * Apply `.arcade` to any element to get the physical-button depth feel.
+ * Use --skin (top face), --shadow (drop shadow under the skin), and
+ * --press-color (background visible under the button when pressed).
+ *
+ *   <button class="arcade" style="--skin: var(--lime); --shadow: #2c8400">
+ *     PLAY
+ *   </button>
+ */
+.arcade {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border-radius: var(--radius-md);
+  padding: 0.65rem 1.25rem;
+  background: var(--skin, var(--accent));
+  color: var(--ink, #1a0f00);
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  box-shadow:
+    0 6px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  transform: translateY(0);
+  transition:
+    transform 80ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 80ms ease-out,
+    filter 120ms ease-out;
+  cursor: pointer;
+  user-select: none;
+}
+
+.arcade:hover:not(:disabled) {
+  filter: brightness(1.06) saturate(1.06);
+}
+
+.arcade:active:not(:disabled) {
+  transform: translateY(6px);
+  box-shadow:
+    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 2px 8px -2px rgba(0, 0, 0, 0.4);
+}
+
+.arcade:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.3);
+}
+
+.arcade-sm {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+  box-shadow:
+    0 4px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 6px 16px -8px rgba(0, 0, 0, 0.5);
+}
+.arcade-sm:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow:
+    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 2px 6px -2px rgba(0, 0, 0, 0.4);
+}
+
+.arcade-lg {
+  padding: 0.95rem 1.75rem;
+  font-size: 1.05rem;
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 8px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 12px 30px -10px rgba(0, 0, 0, 0.55);
+}
+.arcade-lg:active:not(:disabled) {
+  transform: translateY(8px);
+  box-shadow:
+    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
+    0 2px 10px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* ghost arcade variant — outline-only */
+.arcade.ghost {
+  background: var(--surface-2);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  border-color: var(--border);
+  box-shadow:
+    0 5px 0 0 var(--surface);
+}
+.arcade.ghost:active:not(:disabled) {
+  box-shadow: 0 0 0 0 var(--surface);
+}
+
+/* ------------------------ chunky game-card surface ---------------------- */
+
+/*
+ * Use `.game-card` for elevated panels (Daily Drop, persona tiles, score
+ * boards). Same chunky depth as arcade buttons but with no press behavior.
+ */
+.game-card {
+  position: relative;
+  background: var(--skin, var(--surface));
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 8px 0 0 var(--shadow, var(--border)),
+    0 18px 40px -16px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* --------------------------- glow / pulse ------------------------------ */
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 214, 46, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgba(255, 214, 46, 0);
+  }
+}
+
+.pulse-gold {
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-quest {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(139, 92, 246, 0.45),
+      0 0 30px 4px rgba(139, 92, 246, 0.35),
+      0 8px 0 0 var(--shadow, var(--border));
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(34, 211, 238, 0.55),
+      0 0 50px 12px rgba(34, 211, 238, 0.4),
+      0 8px 0 0 var(--shadow, var(--border));
+  }
+}
+
+.pulse-quest {
+  animation: pulse-quest 2.6s ease-in-out infinite;
+}
+
+/* -------------------- entrance / motion utilities ---------------------- */
+
+@keyframes pop-in {
+  0% {
+    transform: scale(0.6) translateY(12px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08) translateY(-2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.pop-in {
+  animation: pop-in 380ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-10px) rotate(-1deg);
+  }
+  30% {
+    transform: translateX(10px) rotate(1deg);
+  }
+  45% {
+    transform: translateX(-8px) rotate(-0.6deg);
+  }
+  60% {
+    transform: translateX(8px) rotate(0.6deg);
+  }
+  75% {
+    transform: translateX(-4px);
+  }
+}
+
+.shake {
+  animation: shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes float-up {
+  0% {
+    transform: translate(-50%, 0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    transform: translate(-50%, -8px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -56px) scale(0.9);
+    opacity: 0;
+  }
+}
+
+.float-up {
+  animation: float-up 1.4s ease-out forwards;
+}
+
+@keyframes confetti-pop {
+  0% {
+    transform: scale(0.4) rotate(-12deg);
+    opacity: 0;
+  }
+  35% {
+    transform: scale(1.18) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.confetti-pop {
+  animation: confetti-pop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* loading skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background-color: var(--surface-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
+  background-size: 800px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.2s linear infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* spin */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -11,7 +11,10 @@ This commit lays down the foundation: project scaffold, auth (Clerk), the Finger
 - **Clerk** for authentication, integrated with Supabase as a third-party auth provider (Supabase verifies Clerk-issued JWTs natively — no JWT templates, no shared secrets)
 - **Supabase** Postgres for the Fingerprint DB
 - **PostHog** for product analytics with autocapture + identified pageviews
-- **Vercel AI SDK** with **Google Gemini** (free tier, 1500 req/day — `gemini-2.5-flash` for streamed explanations, `gemini-2.5-pro` for the structured Comprehension Gauntlet) — falls back to **Anthropic Claude** (Haiku 4.5 / Sonnet 4.5) if `GOOGLE_GENERATIVE_AI_API_KEY` is unset
+- **Vercel AI SDK** with multi-provider LLM routing. Provider preference order:
+  1. **Groq** (recommended, free — ~14k req/day on `llama-3.3-70b-versatile`, no credit card, no Cloud project — easiest signup)
+  2. **Google Gemini** (free, 1500 req/day on `gemini-2.5-flash` / 50/day on `gemini-2.5-pro`)
+  3. **Anthropic Claude** (paid fallback — Haiku 4.5 + Sonnet 4.5)
 - **Supabase Realtime** (Postgres-Changes channels) for 1v1 Blitz, Study Rooms, and Radio status — no Pusher, no socket server
 - **ElevenLabs** Turbo v2.5 TTS for Professor Radio (graceful-degrades to script-only when unconfigured)
 - **Bun** as the package manager
@@ -83,11 +86,12 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_POSTHOG_KEY=phc_...
 
-# Pick ONE LLM provider — the app prefers Gemini if both are set.
-# RECOMMENDED (free, no credit card): https://aistudio.google.com/apikey
-GOOGLE_GENERATIVE_AI_API_KEY=AIza...
-# Or paid fallback:
-ANTHROPIC_API_KEY=sk-ant-...
+# Pick ONE LLM provider — preference order: Groq > Gemini > Anthropic.
+# RECOMMENDED (free, no credit card, no Cloud project): https://console.groq.com/keys
+GROQ_API_KEY=gsk_...
+# Or alternates:
+# GOOGLE_GENERATIVE_AI_API_KEY=AIza...      # https://aistudio.google.com/apikey (free)
+# ANTHROPIC_API_KEY=sk-ant-...              # https://console.anthropic.com/settings/keys (paid)
 
 # Optional — Professor Radio. If missing, scripts still generate but
 # audio synthesis is skipped and the player shows a degraded notice.
@@ -104,7 +108,7 @@ ELEVENLABS_VOICE_GEN_Z=...
 ELEVENLABS_VOICE_PROFESSOR=...
 ```
 
-> **Free LLM**: Get a Google Gemini key at https://aistudio.google.com/apikey (no credit card; 1500 free requests/day). Without _any_ LLM key, the `/learn` page loads but explain/gauntlet endpoints return `503`. Anthropic is only used if Gemini is missing.
+> **Free LLM (recommended)**: Get a Groq key at https://console.groq.com/keys — sign in with Google in one click, no credit card, no Cloud project, ~14,400 requests/day on Llama 3.3 70B. Gemini and Anthropic are used only as fallbacks. Without _any_ LLM key, the `/learn` page loads but explain/gauntlet endpoints return `503`.
 >
 > Get an ElevenLabs key at https://elevenlabs.io/app/settings/api-keys. Without it `/radio` still works in script-only mode (no audio).
 

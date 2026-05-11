@@ -12,6 +12,7 @@ import {
 import { computeStreak, computeXp, todayUtc } from "@/lib/colosseum/xp";
 import { autoForgeFlashcards } from "@/lib/flashcards/generate";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { ensureUserRow } from "@/lib/users/ensure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -105,7 +106,9 @@ export async function POST(req: Request) {
   const existingRanked = await fetchRankedAttempt(userId, dropDate);
   const isRanked = !existingRanked;
 
-  // Load the user row (for Elo + streak inputs).
+  // Load the user row (for Elo + streak inputs). Auto-create if missing so
+  // direct hits to /learn don't require visiting /dashboard first.
+  await ensureUserRow(userId);
   const supabase = await getServerSupabase();
   const { data: userRow, error: userError } = await supabase
     .from("users")

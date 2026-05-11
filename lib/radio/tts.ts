@@ -1,31 +1,127 @@
 import "server-only";
 
-import { getPersona, getVoiceId } from "@/lib/ai/personas";
+import { getPersona, getVoiceId, type PersonaSlug } from "@/lib/ai/personas";
 
 import type { Script } from "./script";
 
 /**
- * Whether the ElevenLabs API is wired up. Checked before any TTS attempt
- * so we can degrade gracefully (script-only podcast) without a 500.
+ * Multi-provider TTS layer for Professor Radio.
+ *
+ * Provider preference (highest first):
+ *   1. Google Cloud Text-to-Speech — set GOOGLE_CLOUD_TTS_API_KEY
+ *      (FREE: 1M chars/mo Neural2, 4M chars/mo standard. No IP blocks.)
+ *   2. ElevenLabs                  — set ELEVENLABS_API_KEY
+ *      (FREE: 10k chars/mo. Free tier blocked from many cloud/VPN IPs.)
+ *   3. None — episodes degrade to script-only (transcript view).
+ *
+ * Both providers return raw mp3 bytes; the player concatenates segment chunks
+ * naively (mp3 frame headers are self-contained, so this works in every
+ * browser <audio> element).
  */
-export function isElevenLabsConfigured(): boolean {
-  const key = process.env.ELEVENLABS_API_KEY;
-  return Boolean(key && key.length > 10);
+
+type TtsProvider = "google" | "elevenlabs" | "none";
+
+export function activeTtsProvider(): TtsProvider {
+  if (isGoogleTtsConfigured()) return "google";
+  if (isElevenLabsConfigured()) return "elevenlabs";
+  return "none";
+}
+
+/** True iff *any* supported TTS provider is configured. */
+export function isTtsConfigured(): boolean {
+  return activeTtsProvider() !== "none";
 }
 
 /**
- * Voice a single text segment with ElevenLabs. Returns the raw mp3 bytes.
- * Uses the multilingual v2 model and the "eleven_turbo_v2_5" preset for
- * quick generation; we don't stream because we need the full bytes to
- * concat into the episode.
+ * Back-compat shim — radio route still calls this name. Returns true if any
+ * TTS provider is configured (not just ElevenLabs).
  */
-async function voiceSegment(opts: {
+export function isElevenLabsConfigured(): boolean {
+  return isTtsConfigured();
+}
+
+function isGoogleTtsConfigured(): boolean {
+  const key = process.env.GOOGLE_CLOUD_TTS_API_KEY;
+  return Boolean(key && key.length > 10 && key !== "REPLACE_ME");
+}
+
+function isElevenLabsConfiguredInternal(): boolean {
+  const key = process.env.ELEVENLABS_API_KEY;
+  return Boolean(key && key.length > 10 && key !== "REPLACE_ME");
+}
+
+// -------------------------------------------------------------------------
+// Google Cloud Text-to-Speech
+// -------------------------------------------------------------------------
+
+/**
+ * Persona → Google Cloud Neural2 voice mapping.
+ *
+ * Neural2 voices are the highest-quality free-tier option (1M chars/mo).
+ * Listing: https://cloud.google.com/text-to-speech/docs/voices
+ *
+ * Voice picks are tuned for persona vibe — not a perfect match, but each
+ * persona gets a *distinct* voice so a multi-host episode sounds like a
+ * real conversation, not one narrator.
+ */
+const GOOGLE_VOICES: Record<PersonaSlug, { name: string; rate: number; pitch: number }> = {
+  mr_viral:        { name: "en-US-Neural2-J", rate: 1.15, pitch:  2.0 }, // young male, energetic
+  tech_reviewer:   { name: "en-US-Neural2-D", rate: 0.98, pitch: -1.0 }, // measured male
+  twitch_streamer: { name: "en-US-Neural2-I", rate: 1.10, pitch:  1.0 }, // casual male
+  drill_sergeant:  { name: "en-US-Neural2-A", rate: 1.05, pitch: -3.0 }, // deep authoritative
+  gen_z:           { name: "en-US-Neural2-F", rate: 1.05, pitch:  1.5 }, // warm female
+  professor:       { name: "en-US-Neural2-D", rate: 0.95, pitch:  0.0 }, // calm male
+};
+
+async function googleVoiceSegment(opts: {
+  slug: PersonaSlug;
+  text: string;
+}): Promise<Uint8Array> {
+  const apiKey = process.env.GOOGLE_CLOUD_TTS_API_KEY!;
+  const v = GOOGLE_VOICES[opts.slug] ?? GOOGLE_VOICES.professor;
+
+  const res = await fetch(
+    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        input: { text: opts.text },
+        voice: { languageCode: "en-US", name: v.name },
+        audioConfig: {
+          audioEncoding: "MP3",
+          speakingRate: v.rate,
+          pitch: v.pitch,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    throw new Error(
+      `Google Cloud TTS failed (${res.status}): ${errBody.slice(0, 220)}`,
+    );
+  }
+  const json = (await res.json()) as { audioContent?: string };
+  if (!json.audioContent) {
+    throw new Error("Google Cloud TTS returned no audioContent");
+  }
+  return Uint8Array.from(Buffer.from(json.audioContent, "base64"));
+}
+
+// -------------------------------------------------------------------------
+// ElevenLabs
+// -------------------------------------------------------------------------
+
+async function elevenLabsVoiceSegment(opts: {
   voiceId: string;
   text: string;
   modelId?: string;
 }): Promise<Uint8Array> {
   const apiKey = process.env.ELEVENLABS_API_KEY!;
-  const modelId = opts.modelId ?? process.env.ELEVENLABS_MODEL ?? "eleven_turbo_v2_5";
+  const modelId =
+    opts.modelId ?? process.env.ELEVENLABS_MODEL ?? "eleven_turbo_v2_5";
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(opts.voiceId)}?output_format=mp3_44100_128`,
@@ -55,23 +151,28 @@ async function voiceSegment(opts: {
       `ElevenLabs TTS failed (${res.status}): ${errBody.slice(0, 200)}`,
     );
   }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  return buf;
+  return new Uint8Array(await res.arrayBuffer());
 }
 
+// -------------------------------------------------------------------------
+// Public API
+// -------------------------------------------------------------------------
+
 /**
- * Walk every segment, voice it with the speaker's persona voice id, and
- * return a single concatenated mp3 buffer. We sleep ~150ms between
- * segments to stay polite with the rate limiter.
+ * Walk every segment, voice it with the active provider, and return a single
+ * concatenated mp3 buffer. We sleep ~120ms between segments to stay polite
+ * with rate limiters.
  *
- * NOTE: naive mp3 concat works because each chunk has its own frames; it's
- * not a perfect container but every player we care about (browser <audio>,
- * iOS, Android) handles this. If we ever need surgical container repair
- * we can post-process with ffmpeg.
+ * NOTE: naive mp3 concat works because each chunk has its own frame headers.
+ * Every browser <audio> element (and iOS / Android) handles this; if we ever
+ * need surgical container repair we can post-process with ffmpeg.
  */
 export async function voiceScript(script: Script): Promise<Uint8Array> {
-  if (!isElevenLabsConfigured()) {
-    throw new Error("ELEVENLABS_API_KEY is not configured");
+  const provider = activeTtsProvider();
+  if (provider === "none") {
+    throw new Error(
+      "No TTS provider configured (set GOOGLE_CLOUD_TTS_API_KEY or ELEVENLABS_API_KEY)",
+    );
   }
 
   const chunks: Uint8Array[] = [];
@@ -81,12 +182,24 @@ export async function voiceScript(script: Script): Promise<Uint8Array> {
     const seg = script.segments[i];
     const persona = getPersona(seg.speaker);
     if (!persona) continue;
-    const voiceId = getVoiceId(persona);
-    const audio = await voiceSegment({ voiceId, text: seg.text });
+
+    let audio: Uint8Array;
+    if (provider === "google") {
+      audio = await googleVoiceSegment({
+        slug: persona.slug,
+        text: seg.text,
+      });
+    } else {
+      audio = await elevenLabsVoiceSegment({
+        voiceId: getVoiceId(persona),
+        text: seg.text,
+      });
+    }
+
     chunks.push(audio);
     total += audio.byteLength;
     if (i < script.segments.length - 1) {
-      await new Promise((r) => setTimeout(r, 150));
+      await new Promise((r) => setTimeout(r, 120));
     }
   }
 

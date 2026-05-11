@@ -1,10 +1,10 @@
 import "server-only";
 
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { gauntletModel } from "./client";
 import type { Persona } from "./personas";
+import { safeGenerateObject } from "./structured";
 
 /** A single Comprehension Gauntlet multiple-choice question. */
 export const QuestionSchema = z.object({
@@ -51,7 +51,7 @@ export async function generateGauntlet({
   text,
   explanation,
 }: GenerateGauntletOptions): Promise<GauntletQuestion[]> {
-  const { object } = await generateObject({
+  const object = await safeGenerateObject({
     model: gauntletModel,
     schema: GauntletSchema,
     system: `You are a Socratic examiner generating a 3-question Comprehension Gauntlet.
@@ -65,7 +65,13 @@ Write 3 multiple-choice questions that:
 4. Use a tone that loosely matches the persona — punchy if the persona is, formal if formal — but never sacrifice clarity.
 5. Avoid trick questions, double negatives, and "all of the above".
 
-Return strictly valid JSON matching the schema.`,
+JSON SHAPE:
+{
+  "questions": [
+    { "q": "string", "choices": ["string","string","string","string"],
+      "correct_index": 0|1|2|3, "gotcha": "string" }
+  ]  // exactly 3 items
+}`,
     prompt: [
       `Source concept:`,
       text.trim(),

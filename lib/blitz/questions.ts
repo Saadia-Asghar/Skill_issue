@@ -1,9 +1,9 @@
 import "server-only";
 
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { gauntletModel } from "@/lib/ai/client";
+import { safeGenerateObject } from "@/lib/ai/structured";
 import { BLITZ_QUESTION_POOL } from "@/lib/realtime/constants";
 
 /**
@@ -36,7 +36,7 @@ export type BlitzQuestion = z.infer<typeof BlitzQuestionSchema>;
 export async function generateBlitzQuestions(
   conceptText: string,
 ): Promise<BlitzQuestion[]> {
-  const { object } = await generateObject({
+  const object = await safeGenerateObject({
     model: gauntletModel,
     schema: BlitzPoolSchema,
     system: `You are writing questions for a 1v1 RAPID-FIRE blitz quiz.
@@ -49,7 +49,13 @@ Generate exactly ${BLITZ_QUESTION_POOL} multiple-choice questions about the conc
 4. Mix difficulty: roughly easy/easy/medium/medium/medium/hard/hard.
 5. NEVER use "all of the above" or double negatives.
 
-Return strictly valid JSON matching the schema.`,
+JSON SHAPE:
+{
+  "questions": [
+    { "q": "string", "choices": ["string","string","string","string"],
+      "correct_index": 0|1|2|3, "gotcha": "string" }
+  ]  // exactly ${BLITZ_QUESTION_POOL} items
+}`,
     prompt: [`Concept text:`, conceptText.trim()].join("\n"),
     temperature: 0.4,
   });

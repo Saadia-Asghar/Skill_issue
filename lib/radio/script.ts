@@ -1,11 +1,11 @@
 import "server-only";
 
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { gauntletModel, isAnthropicConfigured } from "@/lib/ai/client";
 import type { Persona, PersonaSlug } from "@/lib/ai/personas";
 import { getPersona } from "@/lib/ai/personas";
+import { safeGenerateObject } from "@/lib/ai/structured";
 
 /**
  * Professor Radio script schema.
@@ -56,7 +56,7 @@ export async function generateScript(opts: {
     .join("\n");
 
   try {
-    const { object } = await generateObject({
+    const object = await safeGenerateObject({
       model: gauntletModel,
       schema: ScriptSchema,
       system: `You are showrunning a 5-minute study podcast called "Professor Radio".
@@ -73,7 +73,17 @@ ${personaList}
 - Then 2-4 'dialog' segments with personas reacting to each other (back-and-forth banter, NOT lecture).
 - Close with an 'outro' segment that summarizes the one thing the listener should remember.
 - NO markdown. NO stage directions in brackets. NO sound effects. NO citations.
-- Keep sentences short — this will be read aloud. Use ellipses and dashes for breath beats.`,
+- Keep sentences short — this will be read aloud. Use ellipses and dashes for breath beats.
+
+JSON SHAPE:
+{
+  "title": "string (4-120 chars)",
+  "segments": [
+    { "kind": "intro" | "take" | "dialog" | "outro",
+      "speaker": "<one of the persona slugs above>",
+      "text": "string (20-900 chars, spoken aloud)" }
+  ]  // 4-24 segments total
+}`,
       prompt: [
         `Topic notes from the listener:`,
         ``,

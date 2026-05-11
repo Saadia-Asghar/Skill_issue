@@ -175,6 +175,16 @@ export function RadioStudio({
             episodes={episodes}
             activeId={activeId}
             onSelect={setActiveId}
+            onDelete={async (id) => {
+              const r = await fetch(`/api/radio/${id}`, { method: "DELETE" });
+              if (!r.ok) return;
+              setEpisodes((prev) => prev.filter((e) => e.id !== id));
+              if (activeId === id) {
+                setActiveId(
+                  episodes.find((e) => e.id !== id)?.id ?? null,
+                );
+              }
+            }}
           />
         )}
       </div>
@@ -528,46 +538,97 @@ function EpisodeList({
   episodes,
   activeId,
   onSelect,
+  onDelete,
 }: {
   episodes: RadioEpisodeRow[];
   activeId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
+  const failedCount = episodes.filter((e) => e.status === "failed").length;
+
+  const sweepFailed = async () => {
+    const ids = episodes.filter((e) => e.status === "failed").map((e) => e.id);
+    for (const id of ids) await onDelete(id);
+  };
+
   return (
     <GameCard className="p-4">
-      <p
-        className="px-2 py-1 text-[10px] font-bold uppercase tracking-[0.4em]"
-        style={{ color: "var(--gold)" }}
-      >
-        ◇ library
-      </p>
-      <div className="mt-1 max-h-72 space-y-2 overflow-y-auto">
-        {episodes.map((e) => (
+      <div className="flex items-center justify-between px-2 py-1">
+        <p
+          className="text-[10px] font-bold uppercase tracking-[0.4em]"
+          style={{ color: "var(--gold)" }}
+        >
+          ◇ library
+        </p>
+        {failedCount > 0 && (
           <button
-            key={e.id}
             type="button"
-            onClick={() => onSelect(e.id)}
-            className="w-full rounded-xl border-2 px-3 py-2 text-left text-sm font-bold transition"
+            onClick={sweepFailed}
+            className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] transition hover:opacity-80"
             style={{
-              background:
-                e.id === activeId ? "var(--surface-2)" : "var(--surface)",
-              borderColor:
-                e.id === activeId ? "var(--lime)" : "rgba(0,0,0,0.3)",
-              color: e.id === activeId ? "var(--foreground)" : "var(--muted)",
-              boxShadow:
-                e.id === activeId
-                  ? "0 4px 0 0 var(--lime)"
-                  : "0 3px 0 0 var(--border)",
+              borderColor: "var(--magenta)",
+              color: "var(--magenta)",
+              background: "transparent",
             }}
           >
-            <div className="flex items-center justify-between">
-              <span className="truncate">{e.title}</span>
-              <span className="ml-2 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em]">
-                {STATUS_LABEL[e.status]}
-              </span>
-            </div>
+            ✕ Clear {failedCount} failed
           </button>
-        ))}
+        )}
+      </div>
+      <div className="mt-1 max-h-72 space-y-2 overflow-y-auto">
+        {episodes.map((e) => {
+          const isActive = e.id === activeId;
+          return (
+            <div
+              key={e.id}
+              className="flex items-center gap-1 rounded-xl border-2 transition"
+              style={{
+                background: isActive ? "var(--surface-2)" : "var(--surface)",
+                borderColor: isActive ? "var(--lime)" : "rgba(0,0,0,0.3)",
+                boxShadow: isActive
+                  ? "0 4px 0 0 var(--lime)"
+                  : "0 3px 0 0 var(--border)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onSelect(e.id)}
+                className="flex-1 px-3 py-2 text-left text-sm font-bold"
+                style={{
+                  color: isActive ? "var(--foreground)" : "var(--muted)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">{e.title}</span>
+                  <span
+                    className="shrink-0 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{
+                      color:
+                        e.status === "failed"
+                          ? "var(--magenta)"
+                          : e.status === "ready"
+                            ? "var(--lime)"
+                            : "var(--accent-2)",
+                    }}
+                  >
+                    {STATUS_LABEL[e.status]}
+                  </span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(e.id)}
+                aria-label="Delete episode"
+                title="Delete episode"
+                className="mr-2 rounded-md px-2 py-1 text-xs font-bold text-muted transition hover:text-foreground"
+                style={{ background: "transparent" }}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
       </div>
     </GameCard>
   );

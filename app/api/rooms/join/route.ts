@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { fetchRoomByCode } from "@/lib/rooms/queries";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { ensureUserRow } from "@/lib/users/ensure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
     );
   }
 
+  await ensureUserRow(userId);
   const supabase = await getServerSupabase();
   await supabase
     .from("study_room_members")

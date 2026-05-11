@@ -90,6 +90,26 @@ export const gauntletModel = isGroqConfigured()
     : anthropic(process.env.ANTHROPIC_GAUNTLET_MODEL ?? "claude-sonnet-4-5");
 
 /**
+ * Text-mode fallback for structured generation when the strict JSON-Schema
+ * path fails (see `safeGenerateObject` in lib/ai/structured.ts).
+ *
+ * Why a separate model? Groq's `openai/gpt-oss-120b` is a *reasoning* model:
+ * its visible `text` channel is often empty because the actual content lives
+ * in a hidden reasoning channel that the AI SDK strips. That breaks any
+ * "ask the model to print JSON, then parse it" recovery path.
+ *
+ * `llama-3.3-70b-versatile` is a plain instruction-following model that
+ * reliably emits the JSON we ask for, no reasoning-channel weirdness. It
+ * doesn't support strict JSON Schema (which is fine — we're only using it
+ * after the strict path has already failed).
+ */
+export const textJsonModel = isGroqConfigured()
+  ? groq(process.env.GROQ_JSON_FALLBACK_MODEL ?? "llama-3.3-70b-versatile")
+  : isGeminiConfigured()
+    ? google(process.env.GOOGLE_JSON_FALLBACK_MODEL ?? "gemini-2.5-flash")
+    : anthropic(process.env.ANTHROPIC_JSON_FALLBACK_MODEL ?? "claude-haiku-4-5");
+
+/**
  * True iff *any* supported LLM provider has a usable key configured.
  * Callers (route handlers) use this to fail fast with a 503 when no provider
  * is set up.

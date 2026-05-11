@@ -11,6 +11,7 @@ import {
 import { generateBlitzQuestions } from "@/lib/blitz/questions";
 import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import type { Json } from "@/lib/supabase/types";
+import { ensureUserRow } from "@/lib/users/ensure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
 
   let matchId: string | null = null;
   try {
+    await ensureUserRow(userId);
     matchId = await dequeueOrEnqueue({
       userId,
       personaSlug: persona.slug,

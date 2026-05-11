@@ -1,11 +1,11 @@
 import "server-only";
 
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { explainModel, isAnthropicConfigured } from "@/lib/ai/client";
 import type { Persona, PersonaSlug } from "@/lib/ai/personas";
 import { getPersona } from "@/lib/ai/personas";
+import { safeGenerateObject } from "@/lib/ai/structured";
 import { getAnonServerSupabase } from "@/lib/supabase/server";
 import type { Database, FlashcardSource } from "@/lib/supabase/types";
 
@@ -44,7 +44,7 @@ export async function generateFlashcards(opts: {
     return [];
   }
   try {
-    const { object } = await generateObject({
+    const object = await safeGenerateObject({
       model: explainModel,
       schema: GeneratedCardListSchema,
       system: `You are turning a concept into 3-5 spaced-repetition flashcards in the voice of: ${opts.persona.name} — ${opts.persona.tagline}.
@@ -55,7 +55,14 @@ Rules:
 - Backs are 1-3 short sentences in the persona's voice — punchy, memorable.
 - Avoid restating the concept's title verbatim.
 - No markdown, no bullet lists, no "Q:" / "A:" prefixes.
-- Mix difficulty: at least one easy recall card and one application card.`,
+- Mix difficulty: at least one easy recall card and one application card.
+
+JSON SHAPE:
+{
+  "cards": [
+    { "front": "string (8-180 chars)", "back": "string (12-360 chars)" }
+  ]  // 3-5 items
+}`,
       prompt: [
         `Concept: ${opts.conceptTitle}`,
         ``,

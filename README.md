@@ -1,8 +1,18 @@
 # Professor Decompose V3 — The Cognitive Arena
 
-The LeetCode of Learning. A Next.js app that maps which pedagogical style ("influencer persona") actually makes information stick for each user, validates retention through a Comprehension Gauntlet, and ranks learners on a global Elo leaderboard.
+[![CI](https://github.com/zakaryaahm3d/Hack/actions/workflows/ci.yml/badge.svg)](https://github.com/zakaryaahm3d/Hack/actions/workflows/ci.yml)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Postgres+Realtime-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
+[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com)
+[![Groq](https://img.shields.io/badge/LLM-Groq%20%C2%B7%20Llama%203.3%2070B-F55036)](https://console.groq.com)
+[![ElevenLabs](https://img.shields.io/badge/TTS-ElevenLabs-000000)](https://elevenlabs.io)
+[![PostHog](https://img.shields.io/badge/Analytics-PostHog-1D4AFF?logo=posthog&logoColor=white)](https://posthog.com)
 
-This commit lays down the foundation: project scaffold, auth (Clerk), the Fingerprint DB (Supabase), and analytics (PostHog). The arena features (Daily Drop, 1v1 Blitz, persona explanations, gauntlet) build on top of this.
+> **The LeetCode of Learning.** A gamified, "addictive arcade" study platform that maps which pedagogical style — which **influencer persona** — actually makes information stick for each user, validates retention through a timed **Comprehension Gauntlet**, and ranks learners on a global Elo leaderboard.
+
+**The full vertical slice in one repo:** Influencer Synthesis Engine → Comprehension Gauntlet → Cognitive Colosseum (Daily Drop + Dean's List) → 1v1 Blitz → Study Rooms → Flashcard Forge → Professor Radio. Wrapped in a vibrant cartoon-arcade UI with chunky depth, neon palette, and bouncy Framer Motion transitions.
 
 ## Stack
 

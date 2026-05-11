@@ -1,9 +1,9 @@
 import "server-only";
 
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { gauntletModel } from "@/lib/ai/client";
+import { safeGenerateObject } from "@/lib/ai/structured";
 import { ROOM_QUESTION_COUNT } from "@/lib/realtime/constants";
 import {
   getAnonServerSupabase,
@@ -94,7 +94,7 @@ export type RoomQuestion = z.infer<typeof RoomQuestionSchema>;
 export async function generateRoomQuestions(
   source: string,
 ): Promise<RoomQuestion[]> {
-  const { object } = await generateObject({
+  const object = await safeGenerateObject({
     model: gauntletModel,
     schema: RoomPoolSchema,
     system: `You are writing a ${ROOM_QUESTION_COUNT}-question MCQ quiz for a small study room of friends going through the same lecture together.
@@ -106,7 +106,13 @@ Rules:
 4. NEVER use "all of the above", double negatives, or trick wording.
 5. Keep stems concise.
 
-Return strictly valid JSON.`,
+JSON SHAPE:
+{
+  "questions": [
+    { "q": "string", "choices": ["string","string","string","string"],
+      "correct_index": 0|1|2|3, "gotcha": "string" }
+  ]  // exactly ${ROOM_QUESTION_COUNT} items
+}`,
     prompt: [`Lecture / slide source text:`, source.trim()].join("\n"),
     temperature: 0.4,
   });

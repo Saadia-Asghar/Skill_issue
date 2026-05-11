@@ -11,12 +11,14 @@ import {
   uploadEpisodeAudio,
 } from "@/lib/radio/queries";
 import { humanizeSupabaseError } from "@/lib/supabase/errors";
+import { ensureUserRow } from "@/lib/users/ensure";
 import {
   generateScript,
   resolvePersonas,
   scriptWordCount,
 } from "@/lib/radio/script";
 import {
+  activeTtsProvider,
   estimatedDurationSeconds,
   isElevenLabsConfigured,
   voiceScript,
@@ -97,6 +99,7 @@ export async function POST(req: Request) {
 
   let episode;
   try {
+    await ensureUserRow(userId);
     episode = await createEpisode({ userId, title, sourceText: notes });
   } catch (e) {
     const h = humanizeSupabaseError(e);
@@ -150,12 +153,64 @@ export async function POST(req: Request) {
     duration_seconds: durationSeconds,
   });
 
+  // Voice the script first; if that fails for a *recoverable* reason we keep
+  // the episode and surface the transcript. Storage upload is a separate
+  // concern handled below — we never fail the episode just because the
+  // bucket rejected the bytes.
+  let audioBytes: Uint8Array | null = null;
   try {
-    const bytes = await voiceScript(script);
+    audioBytes = await voiceScript(script);
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Voice generation failed";
+    const provider = activeTtsProvider();
+    const lower = message.toLowerCase();
+    const isProviderBlock =
+      /\b401\b|\b403\b|\b429\b|unauthorized|forbidden|quota|unusual activity|free tier|payment required|insufficient_quota|rate.?limit/.test(
+        lower,
+      );
+
+    if (isProviderBlock) {
+      const providerLabel =
+        provider === "google"
+          ? "Google Cloud TTS"
+          : provider === "elevenlabs"
+            ? "ElevenLabs"
+            : "the TTS provider";
+      const hint =
+        provider === "elevenlabs"
+          ? "ElevenLabs free tier is often blocked on cloud/VPN IPs. Easiest fix: drop a Google Cloud TTS key into GOOGLE_CLOUD_TTS_API_KEY (1M chars/mo free, no IP blocks)."
+          : "Check that the API is enabled and the key is unrestricted (or restricted to the right API).";
+
+      await updateEpisode(episode.id, {
+        status: "ready",
+        audio_url: null,
+        error_message: `Audio unavailable from ${providerLabel} (${message.slice(0, 160)}). The script below is the full episode — read it like a transcript.`,
+      });
+      return NextResponse.json({
+        id: episode.id,
+        status: "ready",
+        audio_url: null,
+        script,
+        degraded: true,
+        hint,
+      });
+    }
+
+    await failEpisode(episode.id, message);
+    return NextResponse.json(
+      { id: episode.id, status: "failed", error: message },
+      { status: 502 },
+    );
+  }
+
+  // Audio is in hand. Try to upload; if the bucket rejects us, still ship
+  // the script as a transcript so the user gets *something* useful.
+  try {
     const audioUrl = await uploadEpisodeAudio({
       userId,
       episodeId: episode.id,
-      bytes,
+      bytes: audioBytes,
     });
     await updateEpisode(episode.id, {
       status: "ready",
@@ -170,11 +225,19 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const message =
-      e instanceof Error ? e.message : "Voice generation failed";
-    await failEpisode(episode.id, message);
-    return NextResponse.json(
-      { id: episode.id, status: "failed", error: message },
-      { status: 502 },
-    );
+      e instanceof Error ? e.message : "Audio upload failed";
+    await updateEpisode(episode.id, {
+      status: "ready",
+      audio_url: null,
+      error_message: `Audio was generated but couldn't be saved to storage (${message.slice(0, 160)}). Transcript is below.`,
+    });
+    return NextResponse.json({
+      id: episode.id,
+      status: "ready",
+      audio_url: null,
+      script,
+      degraded: true,
+      hint: "Storage upload was blocked (usually a Supabase Storage RLS policy). The transcript is preserved.",
+    });
   }
 }

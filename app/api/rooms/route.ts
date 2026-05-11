@@ -5,6 +5,7 @@ import { generateUniqueRoomCode } from "@/lib/rooms/queries";
 import { ROOM_DEFAULT_STUDY_SECONDS, ROOM_PASS_THRESHOLD } from "@/lib/realtime/constants";
 import { humanizeSupabaseError } from "@/lib/supabase/errors";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { ensureUserRow } from "@/lib/users/ensure";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       ? Math.min(600, Math.floor(body.studySeconds))
       : ROOM_DEFAULT_STUDY_SECONDS;
 
+  await ensureUserRow(userId);
   const code = await generateUniqueRoomCode();
   const supabase = await getServerSupabase();
   const { data: room, error } = await supabase

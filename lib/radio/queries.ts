@@ -41,7 +41,7 @@ export async function updateEpisode(
   patch: Partial<{
     status: RadioStatus;
     script: Json;
-    audio_url: string;
+    audio_url: string | null;
     duration_seconds: number;
     word_count: number;
     error_message: string | null;

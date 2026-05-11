@@ -69,17 +69,22 @@ export const explainModel = isGroqConfigured()
     : anthropic(process.env.ANTHROPIC_EXPLAIN_MODEL ?? "claude-haiku-4-5");
 
 /**
- * Model used for Comprehension Gauntlet question generation. Needs strong
- * structured-output (JSON-mode) behavior. Llama 3.3 70B, Gemini 2.5 Pro, and
- * Claude Sonnet 4.5 all support that reliably.
+ * Model used for Comprehension Gauntlet question generation. Needs strict
+ * JSON-Schema (structured output) support — NOT every model has it.
+ *
+ * On Groq, only a subset of models support strict JSON Schema:
+ *   https://console.groq.com/docs/structured-outputs#supported-models
+ * `openai/gpt-oss-120b` is a strong default that's free-tier and reliably
+ * generates valid Zod-conforming JSON. Llama 3.3 70B does NOT support
+ * strict JSON Schema and will throw `json_schema not supported`.
  *
  * Override per-provider with:
- *   GROQ_GAUNTLET_MODEL=llama-3.3-70b-versatile
+ *   GROQ_GAUNTLET_MODEL=openai/gpt-oss-120b   (or llama-4-scout, gpt-oss-20b, kimi-k2)
  *   GOOGLE_GAUNTLET_MODEL=gemini-2.5-pro
  *   ANTHROPIC_GAUNTLET_MODEL=claude-sonnet-4-5
  */
 export const gauntletModel = isGroqConfigured()
-  ? groq(process.env.GROQ_GAUNTLET_MODEL ?? "llama-3.3-70b-versatile")
+  ? groq(process.env.GROQ_GAUNTLET_MODEL ?? "openai/gpt-oss-120b")
   : isGeminiConfigured()
     ? google(process.env.GOOGLE_GAUNTLET_MODEL ?? "gemini-2.5-pro")
     : anthropic(process.env.ANTHROPIC_GAUNTLET_MODEL ?? "claude-sonnet-4-5");

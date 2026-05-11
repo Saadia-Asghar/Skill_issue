@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ArcadeButton } from "@/components/game/arcade-button";
 import { GameCard } from "@/components/game/game-card";
@@ -9,6 +9,7 @@ import {
   PersonaCard,
   type PersonaCardData,
 } from "@/components/game/persona-card";
+import { primeSlangSpeech, speakSlangVerdict } from "@/lib/speech/slang-tts";
 
 type Phase = "input" | "explaining" | "ready" | "gauntlet" | "done";
 
@@ -20,6 +21,7 @@ interface ServerQuestion {
 
 interface AnswerResult {
   correct: boolean;
+  slang_verdict: string;
   correct_index: number;
   correct_choice: string;
   your_choice: string | null;
@@ -150,6 +152,7 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
   const submitAnswer = useCallback(
     async (choice: number) => {
       if (!sessionId || results[activeQ]) return;
+      primeSlangSpeech();
 
       const res = await fetch("/api/gauntlet/answer", {
         method: "POST",
@@ -218,6 +221,16 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
 
   const correctCount = Object.values(results).filter((r) => r.correct).length;
   const accent = persona?.accentColor ?? "var(--lime)";
+  const activeResult = results[activeQ] ?? null;
+
+  useEffect(() => {
+    if (!activeResult?.slang_verdict) return;
+    speakSlangVerdict({
+      verdict: activeResult.slang_verdict,
+      isCorrect: activeResult.correct,
+      personaSlug: personaSlug,
+    });
+  }, [activeResult?.slang_verdict, activeResult?.correct, personaSlug]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -743,6 +756,36 @@ function GauntletStep({
                   </span>
                   <span className="text-xs text-muted">— {result.gotcha}</span>
                 </div>
+                {result.slang_verdict && (
+                  <motion.div
+                    initial={
+                      result.correct
+                        ? { opacity: 0, scale: 0.82, y: 12 }
+                        : { opacity: 0, x: -28 }
+                    }
+                    animate={
+                      result.correct
+                        ? { opacity: 1, scale: 1, y: 0 }
+                        : { opacity: 1, x: [0, -8, 8, -4, 4, 0] }
+                    }
+                    transition={
+                      result.correct
+                        ? { type: "spring", stiffness: 340, damping: 20 }
+                        : { duration: 0.36 }
+                    }
+                    className="rounded-xl border-2 px-4 py-3 text-sm font-bold"
+                    style={{
+                      background: result.correct
+                        ? "color-mix(in srgb, var(--lime) 20%, var(--surface-2))"
+                        : "color-mix(in srgb, var(--magenta) 20%, var(--surface-2))",
+                      borderColor: result.correct ? "var(--lime)" : "var(--magenta)",
+                      color: result.correct ? "var(--lime)" : "var(--magenta)",
+                      boxShadow: `0 4px 0 0 ${result.correct ? "var(--lime)" : "var(--magenta)"}`,
+                    }}
+                  >
+                    {result.slang_verdict}
+                  </motion.div>
+                )}
 
                 {!result.correct && (
                   <>

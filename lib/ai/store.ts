@@ -40,6 +40,8 @@ type GauntletSession = {
   /** Set on Colosseum sessions. Free-play sessions leave these null. */
   conceptId: string | null;
   dropDate: string | null;
+  /** Session-local Roast & Toast memory (most recent first at read time). */
+  verdictTrail: Array<{ text: string; mode: "roast" | "toast"; at: number }>;
 };
 
 const STORE = new Map<string, GauntletSession>();
@@ -73,6 +75,7 @@ export function createSession(input: CreateSessionInput): string {
     createdAt: now,
     gauntletStartedAt: now,
     answers: {},
+    verdictTrail: [],
   });
   return id;
 }
@@ -106,4 +109,34 @@ export function recordAnswer(
  */
 export function elapsedSeconds(session: GauntletSession, now = Date.now()): number {
   return Math.max(0, Math.floor((now - session.gauntletStartedAt) / 1000));
+}
+
+export function recordVerdict(
+  id: string,
+  verdict: { text: string; mode: "roast" | "toast" },
+): GauntletSession | null {
+  const session = getSession(id);
+  if (!session) return null;
+  session.verdictTrail.push({ text: verdict.text, mode: verdict.mode, at: Date.now() });
+  if (session.verdictTrail.length > 12) {
+    session.verdictTrail = session.verdictTrail.slice(-12);
+  }
+  return session;
+}
+
+export function recentVerdicts(id: string, limit = 3): string[] {
+  const session = getSession(id);
+  if (!session) return [];
+  return session.verdictTrail.slice(-limit).map((v) => v.text);
+}
+
+export function consecutiveRoastStreak(id: string): number {
+  const session = getSession(id);
+  if (!session) return 0;
+  let streak = 0;
+  for (let i = session.verdictTrail.length - 1; i >= 0; i--) {
+    if (session.verdictTrail[i].mode !== "roast") break;
+    streak += 1;
+  }
+  return streak;
 }

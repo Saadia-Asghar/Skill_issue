@@ -9,6 +9,7 @@ import { ArcadeButton, ArcadeLink } from "@/components/game/arcade-button";
 import { FloatingDelta } from "@/components/game/floating-delta";
 import { GameCard } from "@/components/game/game-card";
 import { PersonaCard, type PersonaCardData } from "@/components/game/persona-card";
+import { primeSlangSpeech, speakSlangVerdict } from "@/lib/speech/slang-tts";
 
 type Phase =
   | "pick"
@@ -26,6 +27,7 @@ interface ServerQuestion {
 
 interface AnswerResult {
   correct: boolean;
+  slang_verdict: string;
   correct_index: number;
   correct_choice: string;
   your_choice: string | null;
@@ -56,6 +58,7 @@ interface SubmitResponse {
     };
     leaderboard: { rank: number } | null;
     flashcards_forged?: number;
+    slang_verdict?: string;
   };
 }
 
@@ -191,6 +194,7 @@ export function ColosseumPlay({
   const submitAnswer = useCallback(
     async (choice: number) => {
       if (!sessionId || results[activeQ]) return;
+      primeSlangSpeech();
       const res = await fetch("/api/gauntlet/answer", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -202,9 +206,16 @@ export function ColosseumPlay({
         return;
       }
       setResults((prev) => ({ ...prev, [activeQ]: json }));
+      if (typeof json.slang_verdict === "string") {
+        speakSlangVerdict({
+          verdict: json.slang_verdict,
+          isCorrect: json.correct,
+          personaSlug: personaSlug,
+        });
+      }
       if (!json.correct) setShakeKey((k) => k + 1);
     },
-    [sessionId, activeQ, results],
+    [sessionId, activeQ, results, personaSlug],
   );
 
   const requestReExplanation = useCallback(async () => {
@@ -347,7 +358,7 @@ export function ColosseumPlay({
       )}
 
       {phase === "done" && submitResponse && (
-        <ResultCard data={submitResponse} accent={accent} />
+        <ResultCard data={submitResponse} accent={accent} personaName={persona?.name ?? "Unknown"} />
       )}
     </div>
   );
@@ -737,6 +748,36 @@ function GauntletStep({
                   </span>
                   <span className="text-xs text-muted">— {result.gotcha}</span>
                 </div>
+                {result.slang_verdict && (
+                  <motion.div
+                    initial={
+                      result.correct
+                        ? { opacity: 0, scale: 0.8, y: 10 }
+                        : { opacity: 0, x: -40 }
+                    }
+                    animate={
+                      result.correct
+                        ? { opacity: 1, scale: 1, y: 0 }
+                        : { opacity: 1, x: [0, -8, 8, -4, 4, 0] }
+                    }
+                    transition={
+                      result.correct
+                        ? { type: "spring", stiffness: 360, damping: 20 }
+                        : { duration: 0.36 }
+                    }
+                    className="rounded-xl border-2 px-4 py-3 text-sm font-bold"
+                    style={{
+                      background: result.correct
+                        ? "color-mix(in srgb, var(--lime) 20%, var(--surface-2))"
+                        : "color-mix(in srgb, var(--magenta) 20%, var(--surface-2))",
+                      borderColor: result.correct ? "var(--lime)" : "var(--magenta)",
+                      color: result.correct ? "var(--lime)" : "var(--magenta)",
+                      boxShadow: `0 4px 0 0 ${result.correct ? "var(--lime)" : "var(--magenta)"}`,
+                    }}
+                  >
+                    {result.slang_verdict}
+                  </motion.div>
+                )}
                 {!result.correct && (
                   <>
                     {!reExplanation && !streamingReExplain && (
@@ -798,14 +839,17 @@ function GauntletStep({
 function ResultCard({
   data,
   accent,
+  personaName,
 }: {
   data: SubmitResponse;
   accent: string;
+  personaName: string;
 }) {
   const { summary } = data;
   const eloPositive = summary.elo.delta > 0;
   const eloZero = summary.elo.delta === 0;
   const perfect = summary.correct === summary.total;
+  const [shareBusy, setShareBusy] = useState(false);
 
   return (
     <div className="relative">
@@ -878,6 +922,33 @@ function ResultCard({
               accent="var(--gold)"
             />
           </div>
+          {summary.slang_verdict && (
+            <motion.div
+              initial={{ opacity: 0, y: summary.correct === summary.total ? 10 : -10 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                x:
+                  summary.correct === summary.total
+                    ? 0
+                    : [0, -6, 6, -3, 3, 0],
+              }}
+              transition={{ duration: 0.4 }}
+              className="mt-5 rounded-2xl border-2 px-4 py-3 text-sm font-bold"
+              style={{
+                background:
+                  summary.correct === summary.total
+                    ? "color-mix(in srgb, var(--lime) 18%, var(--surface))"
+                    : "color-mix(in srgb, var(--magenta) 18%, var(--surface))",
+                borderColor:
+                  summary.correct === summary.total ? "var(--lime)" : "var(--magenta)",
+                color:
+                  summary.correct === summary.total ? "var(--lime)" : "var(--magenta)",
+              }}
+            >
+              {summary.slang_verdict}
+            </motion.div>
+          )}
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <div
@@ -976,6 +1047,36 @@ function ResultCard({
           ) : null}
 
           <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
+            <ArcadeButton
+              type="button"
+              onClick={async () => {
+                if (shareBusy) return;
+                setShareBusy(true);
+                try {
+                  const content = `⚔ ${summary.correct}/${summary.total} in ${summary.elapsed_seconds}s · Elo ${summary.elo.delta >= 0 ? "+" : ""}${summary.elo.delta} · streak ${summary.streak.after}d · ${personaName}`;
+                  await fetch("/api/chat/global", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      kind: "run_share",
+                      content,
+                      payload: {
+                        mode: "colosseum",
+                        elo_delta: summary.elo.delta,
+                        streak: summary.streak.after,
+                        persona: personaName,
+                      },
+                    }),
+                  });
+                } finally {
+                  setShareBusy(false);
+                }
+              }}
+              skin="cyan"
+              size="md"
+            >
+              {shareBusy ? "Sharing..." : "Share to chat"}
+            </ArcadeButton>
             <ArcadeLink href="/colosseum" skin="ghost" size="md">
               Back to Colosseum
             </ArcadeLink>

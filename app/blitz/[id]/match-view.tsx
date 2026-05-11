@@ -22,6 +22,7 @@ import {
   useBlitzMatchSubscription,
   useTick,
 } from "@/lib/realtime/client";
+import { primeSlangSpeech, speakSlangVerdict } from "@/lib/speech/slang-tts";
 import { useSupabase } from "@/lib/supabase/browser";
 import type { BlitzMatchRow } from "@/lib/supabase/types";
 
@@ -84,6 +85,7 @@ export function BlitzMatchView({
   const explainStartedRef = useRef(false);
 
   const [submittedQ, setSubmittedQ] = useState<Record<number, number>>({});
+  const [slangVerdicts, setSlangVerdicts] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   // Animation triggers — change to fire animations once.
@@ -174,23 +176,34 @@ export function BlitzMatchView({
     async (choice: number) => {
       if (match.state !== "BLITZ") return;
       if (submittedQ[match.current_q] !== undefined) return;
+      primeSlangSpeech();
       setSubmittedQ((prev) => ({ ...prev, [match.current_q]: choice }));
       const res = await fetch(`/api/blitz/${matchId}/answer`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ questionIndex: match.current_q, choice }),
       });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        setError(j.error ?? `HTTP ${res.status}`);
+        setError(json.error ?? `HTTP ${res.status}`);
         setSubmittedQ((prev) => {
           const next = { ...prev };
           delete next[match.current_q];
           return next;
         });
+      } else if (typeof json.slang_verdict === "string") {
+        setSlangVerdicts((prev) => ({
+          ...prev,
+          [match.current_q]: json.slang_verdict,
+        }));
+        speakSlangVerdict({
+          verdict: json.slang_verdict,
+          isCorrect: Boolean(json.correct),
+          personaSlug: you.persona?.slug,
+        });
       }
     },
-    [matchId, match.current_q, match.state, submittedQ],
+    [matchId, match.current_q, match.state, submittedQ, you.persona?.slug],
   );
 
   // Per-question watchdog
@@ -220,6 +233,8 @@ export function BlitzMatchView({
     ? (match.player_a_elo_after ?? 0) - (match.player_a_elo_before ?? 0)
     : (match.player_b_elo_after ?? 0) - (match.player_b_elo_before ?? 0);
   const xpDelta = youWon ? 25 : draw ? 5 : 0;
+  const latestVerdict =
+    slangVerdicts[2] ?? slangVerdicts[1] ?? slangVerdicts[0] ?? null;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -303,6 +318,7 @@ export function BlitzMatchView({
           yourCorrect={yourCorrect}
           oppCorrect={oppCorrect}
           outcome={youWon ? "win" : youLost ? "loss" : draw ? "draw" : "tie"}
+          slangVerdict={latestVerdict}
         />
       )}
 
@@ -787,6 +803,7 @@ function ResultPanel({
   yourCorrect,
   oppCorrect,
   outcome,
+  slangVerdict,
 }: {
   accent: string;
   eloDelta: number;
@@ -798,7 +815,9 @@ function ResultPanel({
   yourCorrect: number;
   oppCorrect: number;
   outcome: "win" | "loss" | "draw" | "tie";
+  slangVerdict: string | null;
 }) {
+  const [shareBusy, setShareBusy] = useState(false);
   const verdict =
     outcome === "win"
       ? "VICTORY"
@@ -878,6 +897,28 @@ function ResultPanel({
               {opponent.profile?.username ?? "your opponent"}
             </span>
           </p>
+          {slangVerdict && (
+            <motion.div
+              initial={outcome === "win" ? { opacity: 0, y: 14 } : { opacity: 0, x: -24 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                x: outcome === "win" ? 0 : [0, -6, 6, -3, 3, 0],
+              }}
+              transition={{ duration: 0.38 }}
+              className="mx-auto mt-5 max-w-2xl rounded-xl border-2 px-4 py-3 text-sm font-bold"
+              style={{
+                background:
+                  outcome === "win"
+                    ? "color-mix(in srgb, var(--lime) 18%, var(--surface))"
+                    : "color-mix(in srgb, var(--magenta) 18%, var(--surface))",
+                borderColor: outcome === "win" ? "var(--lime)" : "var(--magenta)",
+                color: outcome === "win" ? "var(--lime)" : "var(--magenta)",
+              }}
+            >
+              {slangVerdict}
+            </motion.div>
+          )}
 
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <ResultStat
@@ -907,6 +948,37 @@ function ResultPanel({
           </div>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <ArcadeButton
+              type="button"
+              onClick={async () => {
+                if (shareBusy) return;
+                setShareBusy(true);
+                try {
+                  const content = `⚔ Blitz ${yourCorrect}-${oppCorrect} · ${outcome.toUpperCase()} · Elo ${eloDelta >= 0 ? "+" : ""}${eloDelta} · ${you.persona?.name ?? "Unknown"}`;
+                  await fetch("/api/chat/global", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                      kind: "run_share",
+                      content,
+                      payload: {
+                        mode: "blitz",
+                        outcome,
+                        elo_delta: eloDelta,
+                        persona: you.persona?.name ?? null,
+                        score: { you: yourCorrect, opp: oppCorrect },
+                      },
+                    }),
+                  });
+                } finally {
+                  setShareBusy(false);
+                }
+              }}
+              skin="cyan"
+              size="lg"
+            >
+              {shareBusy ? "Sharing..." : "Share to chat"}
+            </ArcadeButton>
             <ArcadeLink href="/blitz" skin="lime" size="lg">
               ▶ FIND ANOTHER MATCH
             </ArcadeLink>

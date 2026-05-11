@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { gauntletModel } from "@/lib/ai/client";
+import { normalizeQuestionPool } from "@/lib/ai/question-normalize";
 import { safeGenerateObject } from "@/lib/ai/structured";
 import { BLITZ_QUESTION_POOL } from "@/lib/realtime/constants";
 
@@ -31,15 +32,22 @@ const BlitzPoolSchema = z.object({
   questions: z.array(BlitzQuestionSchema).length(BLITZ_QUESTION_POOL),
 });
 
+const RelaxedBlitzQuestionSchema = z.object({
+  q: z.string(),
+  choices: z.array(z.string()).min(2).max(8),
+  correct_index: z.number().int().min(0).max(7),
+  gotcha: z.string(),
+});
+const RelaxedBlitzPoolSchema = z.object({
+  questions: z.array(RelaxedBlitzQuestionSchema).min(1).max(12),
+});
+
 export type BlitzQuestion = z.infer<typeof BlitzQuestionSchema>;
 
 export async function generateBlitzQuestions(
   conceptText: string,
 ): Promise<BlitzQuestion[]> {
-  const object = await safeGenerateObject({
-    model: gauntletModel,
-    schema: BlitzPoolSchema,
-    system: `You are writing questions for a 1v1 RAPID-FIRE blitz quiz.
+  const system = `You are writing questions for a 1v1 RAPID-FIRE blitz quiz.
 
 Generate exactly ${BLITZ_QUESTION_POOL} multiple-choice questions about the concept the players just studied. Each must:
 
@@ -55,10 +63,32 @@ JSON SHAPE:
     { "q": "string", "choices": ["string","string","string","string"],
       "correct_index": 0|1|2|3, "gotcha": "string" }
   ]  // exactly ${BLITZ_QUESTION_POOL} items
-}`,
-    prompt: [`Concept text:`, conceptText.trim()].join("\n"),
-    temperature: 0.4,
-  });
+}`;
+  const prompt = [`Concept text:`, conceptText.trim()].join("\n");
+  try {
+    const object = await safeGenerateObject({
+      model: gauntletModel,
+      schema: BlitzPoolSchema,
+      system,
+      prompt,
+      temperature: 0.4,
+    });
+    return object.questions;
+  } catch {
+    console.warn("[blitz] strict schema failed; repairing with relaxed parse");
+    const relaxed = await safeGenerateObject({
+      model: gauntletModel,
+      schema: RelaxedBlitzPoolSchema,
+      system: `${system}
 
-  return object.questions;
+CRITICAL: Each question must have exactly 4 choices.`,
+      prompt,
+      temperature: 0.4,
+    });
+    return normalizeQuestionPool(
+      relaxed.questions,
+      BLITZ_QUESTION_POOL,
+      4,
+    ) as BlitzQuestion[];
+  }
 }

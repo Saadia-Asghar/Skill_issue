@@ -3,7 +3,14 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 
-import type { BlitzMatchRow, Database, StudyRoomRow } from "@/lib/supabase/types";
+import type {
+  BlitzMatchRow,
+  Database,
+  GladiatorMatchRow,
+  GlobalMessageRow,
+  RoomMessageRow,
+  StudyRoomRow,
+} from "@/lib/supabase/types";
 
 /**
  * Subscribe to Postgres-Changes for a single row of `blitz_matches`. Returns
@@ -234,4 +241,91 @@ export function useChannelsCleanup(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+}
+
+/** Subscribe to new global chat inserts (append-only stream). */
+export function useGlobalMessagesSubscription(
+  supabase: SupabaseClient<Database>,
+  onInsert: (row: GlobalMessageRow) => void,
+) {
+  useEffect(() => {
+    const channel = supabase
+      .channel("global-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "global_messages" },
+        (payload) => {
+          if (payload.new) onInsert(payload.new as GlobalMessageRow);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [onInsert, supabase]);
+}
+
+/** Subscribe to inserts for one study room's chat feed. */
+export function useRoomMessagesSubscription(
+  supabase: SupabaseClient<Database>,
+  roomId: string | null,
+  onInsert: (row: RoomMessageRow) => void,
+) {
+  useEffect(() => {
+    if (!roomId) return;
+    const channel = supabase
+      .channel(`room-messages:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "room_messages",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          if (payload.new) onInsert(payload.new as RoomMessageRow);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [onInsert, roomId, supabase]);
+}
+
+/** Live-sync one Gladiator match row for combat UI. */
+export function useGladiatorMatch(
+  supabase: SupabaseClient<Database>,
+  matchId: string | null,
+  initial: GladiatorMatchRow | null,
+): GladiatorMatchRow | null {
+  const [row, setRow] = useState<GladiatorMatchRow | null>(initial);
+
+  useEffect(() => {
+    if (!matchId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRow(initial);
+    const channel = supabase
+      .channel(`gladiator-match:${matchId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "gladiator_matches",
+          filter: `id=eq.${matchId}`,
+        },
+        (payload) => {
+          if (payload.new) setRow(payload.new as GladiatorMatchRow);
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
+
+  return row;
 }

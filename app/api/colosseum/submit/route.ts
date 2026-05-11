@@ -1,6 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { generateRoastToastVerdict } from "@/lib/ai/roast-toast";
+import { getPersona } from "@/lib/ai/personas";
+import { insertSystemGlobalMessage } from "@/lib/chat/queries";
 import { elapsedSeconds, getSession } from "@/lib/ai/store";
 import { eloDelta, performanceScore } from "@/lib/colosseum/elo";
 import {
@@ -101,6 +104,7 @@ export async function POST(req: Request) {
   });
   const correct = perQuestion.filter((q) => q.isCorrect).length;
   const perf = performanceScore(correct, total, elapsed);
+  const persona = getPersona(session.personaSlug);
 
   // Decide ranked vs unranked.
   const existingRanked = await fetchRankedAttempt(userId, dropDate);
@@ -112,7 +116,7 @@ export async function POST(req: Request) {
   const supabase = await getServerSupabase();
   const { data: userRow, error: userError } = await supabase
     .from("users")
-    .select("elo, current_streak, last_streak_date, xp, rank")
+    .select("elo, current_streak, last_streak_date, xp, rank, username")
     .eq("clerk_id", userId)
     .maybeSingle();
   if (userError || !userRow) {
@@ -196,6 +200,64 @@ export async function POST(req: Request) {
     personaSlug: session.personaSlug,
   });
 
+  const { data: recentRows } = await supabase
+    .from("gauntlet_attempts")
+    .select("slang_verdict")
+    .eq("user_id", userId)
+    .not("slang_verdict", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const recent = (recentRows ?? [])
+    .map((r) => r.slang_verdict)
+    .filter((v): v is string => typeof v === "string");
+  const runVerdict = await generateRoastToastVerdict({
+    persona: persona ?? {
+      slug: "professor",
+      name: "The Professor",
+      tagline: "Classic Socratic pedagogy with rigor",
+      isCreator: false,
+      accentColor: "#3b82f6",
+      systemPrompt: "",
+      reExplainPrompt: "",
+      voiceId: "",
+    },
+    conceptText: drop.concept.text,
+    question: `Daily Drop run (${dropDate})`,
+    userChoice: `${correct}/${total} correct`,
+    correctAnswer: `target: ${total}/${total}`,
+    isCorrect: correct === total,
+    recentVerdicts: recent,
+    losingStreak: correct === total ? 0 : recent.filter((v) => /\bcooked|skill issue|caught in 4k|L\b/i.test(v)).length + 1,
+  });
+  await supabase
+    .from("gauntlet_attempts")
+    .update({ slang_verdict: runVerdict.slang_verdict })
+    .eq("id", attempt.id);
+
+  try {
+    if (correct === total) {
+      await insertSystemGlobalMessage({
+        personaSlug: "mr_viral",
+        content: `mr viral: ${userRow.username ?? "A challenger"} just full-cleared today's drop. actual cinema.`,
+        payload: { event: "perfect_drop", user_id: userId, correct, total },
+      });
+    } else if (correct === 0) {
+      await insertSystemGlobalMessage({
+        personaSlug: "tech_reviewer",
+        content: `tech reviewer: ${userRow.username ?? "a runner"} went 0/${total}. brutal benchmark, run it back.`,
+        payload: { event: "bombed_drop", user_id: userId, correct, total },
+      });
+    } else if (Math.abs(delta) >= 40) {
+      await insertSystemGlobalMessage({
+        personaSlug: "twitch_streamer",
+        content: `twitch streamer: huge elo swing (${delta > 0 ? "+" : ""}${delta}) by ${userRow.username ?? "a player"}. chat is awake.`,
+        payload: { event: "massive_elo_swing", user_id: userId, elo_delta: delta },
+      });
+    }
+  } catch {
+    // Non-critical side effect.
+  }
+
   return NextResponse.json({
     attempt,
     summary: {
@@ -218,6 +280,7 @@ export async function POST(req: Request) {
       },
       leaderboard: me,
       flashcards_forged: newCards.length,
+      slang_verdict: runVerdict.slang_verdict,
     },
     questions: perQuestion.map((q) => ({
       id: q.id,

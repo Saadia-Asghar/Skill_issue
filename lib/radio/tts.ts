@@ -23,7 +23,7 @@ type TtsProvider = "google" | "elevenlabs" | "none";
 
 export function activeTtsProvider(): TtsProvider {
   if (isGoogleTtsConfigured()) return "google";
-  if (isElevenLabsConfigured()) return "elevenlabs";
+  if (isElevenLabsConfiguredInternal()) return "elevenlabs";
   return "none";
 }
 
@@ -210,6 +210,35 @@ export async function voiceScript(script: Script): Promise<Uint8Array> {
     offset += c.byteLength;
   }
   return out;
+}
+
+/**
+ * Voice a short one-liner (e.g. Roast/Toast verdict) with the currently active
+ * TTS provider and return mp3 bytes.
+ */
+export async function voiceShortLine(opts: {
+  text: string;
+  speakerSlug?: PersonaSlug;
+}): Promise<Uint8Array> {
+  const provider = activeTtsProvider();
+  if (provider === "none") {
+    throw new Error(
+      "No TTS provider configured (set GOOGLE_CLOUD_TTS_API_KEY or ELEVENLABS_API_KEY)",
+    );
+  }
+  const persona = getPersona(opts.speakerSlug ?? "professor") ?? getPersona("professor");
+  if (!persona) throw new Error("Missing professor persona");
+
+  if (provider === "google") {
+    return googleVoiceSegment({
+      slug: persona.slug,
+      text: opts.text,
+    });
+  }
+  return elevenLabsVoiceSegment({
+    voiceId: getVoiceId(persona),
+    text: opts.text,
+  });
 }
 
 /**

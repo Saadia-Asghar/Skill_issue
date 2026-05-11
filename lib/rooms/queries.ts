@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { gauntletModel } from "@/lib/ai/client";
+import { normalizeQuestionPool } from "@/lib/ai/question-normalize";
 import { safeGenerateObject } from "@/lib/ai/structured";
 import { ROOM_QUESTION_COUNT } from "@/lib/realtime/constants";
 import {
@@ -89,15 +90,22 @@ const RoomPoolSchema = z.object({
   questions: z.array(RoomQuestionSchema).length(ROOM_QUESTION_COUNT),
 });
 
+const RelaxedRoomQuestionSchema = z.object({
+  q: z.string(),
+  choices: z.array(z.string()).min(2).max(8),
+  correct_index: z.number().int().min(0).max(7),
+  gotcha: z.string(),
+});
+const RelaxedRoomPoolSchema = z.object({
+  questions: z.array(RelaxedRoomQuestionSchema).min(1).max(12),
+});
+
 export type RoomQuestion = z.infer<typeof RoomQuestionSchema>;
 
 export async function generateRoomQuestions(
   source: string,
 ): Promise<RoomQuestion[]> {
-  const object = await safeGenerateObject({
-    model: gauntletModel,
-    schema: RoomPoolSchema,
-    system: `You are writing a ${ROOM_QUESTION_COUNT}-question MCQ quiz for a small study room of friends going through the same lecture together.
+  const system = `You are writing a ${ROOM_QUESTION_COUNT}-question MCQ quiz for a small study room of friends going through the same lecture together.
 
 Rules:
 1. Each question tests a meaningfully different idea from the source.
@@ -112,11 +120,34 @@ JSON SHAPE:
     { "q": "string", "choices": ["string","string","string","string"],
       "correct_index": 0|1|2|3, "gotcha": "string" }
   ]  // exactly ${ROOM_QUESTION_COUNT} items
-}`,
-    prompt: [`Lecture / slide source text:`, source.trim()].join("\n"),
-    temperature: 0.4,
-  });
-  return object.questions;
+}`;
+  const prompt = [`Lecture / slide source text:`, source.trim()].join("\n");
+  try {
+    const object = await safeGenerateObject({
+      model: gauntletModel,
+      schema: RoomPoolSchema,
+      system,
+      prompt,
+      temperature: 0.4,
+    });
+    return object.questions;
+  } catch {
+    console.warn("[rooms] strict schema failed; repairing with relaxed parse");
+    const relaxed = await safeGenerateObject({
+      model: gauntletModel,
+      schema: RelaxedRoomPoolSchema,
+      system: `${system}
+
+CRITICAL: Exactly 4 choices per question.`,
+      prompt,
+      temperature: 0.4,
+    });
+    return normalizeQuestionPool(
+      relaxed.questions,
+      ROOM_QUESTION_COUNT,
+      4,
+    ) as RoomQuestion[];
+  }
 }
 
 /**

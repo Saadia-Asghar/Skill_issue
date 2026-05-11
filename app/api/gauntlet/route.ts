@@ -68,12 +68,10 @@ export async function POST(req: Request) {
       })),
     });
   } catch (e) {
+    console.error("[gauntlet] generation failed", e);
     return NextResponse.json(
       {
-        error:
-          e instanceof Error
-            ? e.message
-            : "Gauntlet generation failed for an unknown reason",
+        error: "Could not generate quiz right now. Please try once again.",
       },
       { status: 500 },
     );

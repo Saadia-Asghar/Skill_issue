@@ -19,6 +19,7 @@ export type Database = {
           is_correct: boolean
           match_id: string
           question_index: number
+          slang_verdict: string | null
           user_id: string
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           is_correct: boolean
           match_id: string
           question_index: number
+          slang_verdict?: string | null
           user_id: string
         }
         Update: {
@@ -35,6 +37,7 @@ export type Database = {
           is_correct?: boolean
           match_id?: string
           question_index?: number
+          slang_verdict?: string | null
           user_id?: string
         }
         Relationships: []
@@ -225,6 +228,228 @@ export type Database = {
         }
         Relationships: []
       }
+      gladiator_matches: {
+        Row: {
+          concept_id: string | null
+          created_at: string
+          current_question: Json
+          current_turn: string
+          id: string
+          is_bot_match: boolean
+          last_round_summary: Json
+          p1_health: number
+          p1_answered_at: string | null
+          p1_round_choice: number | null
+          p1_score: number
+          p2_health: number
+          p2_answered_at: string | null
+          p2_round_choice: number | null
+          p2_score: number
+          phase: Database["public"]["Enums"]["gladiator_combat_phase"]
+          player_one_id: string
+          player_two_id: string
+          round_number: number
+          round_seconds: number
+          round_started_at: string
+          subject_id: string | null
+          status: Database["public"]["Enums"]["gladiator_match_status"]
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          concept_id?: string | null
+          created_at?: string
+          current_question?: Json
+          current_turn: string
+          id?: string
+          is_bot_match?: boolean
+          last_round_summary?: Json
+          p1_health?: number
+          p1_answered_at?: string | null
+          p1_round_choice?: number | null
+          p1_score?: number
+          p2_health?: number
+          p2_answered_at?: string | null
+          p2_round_choice?: number | null
+          p2_score?: number
+          phase?: Database["public"]["Enums"]["gladiator_combat_phase"]
+          player_one_id: string
+          player_two_id: string
+          round_number?: number
+          round_seconds?: number
+          round_started_at?: string
+          subject_id?: string | null
+          status?: Database["public"]["Enums"]["gladiator_match_status"]
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          concept_id?: string | null
+          created_at?: string
+          current_question?: Json
+          current_turn?: string
+          id?: string
+          is_bot_match?: boolean
+          last_round_summary?: Json
+          p1_health?: number
+          p1_answered_at?: string | null
+          p1_round_choice?: number | null
+          p1_score?: number
+          p2_health?: number
+          p2_answered_at?: string | null
+          p2_round_choice?: number | null
+          p2_score?: number
+          phase?: Database["public"]["Enums"]["gladiator_combat_phase"]
+          player_one_id?: string
+          player_two_id?: string
+          round_number?: number
+          round_seconds?: number
+          round_started_at?: string
+          subject_id?: string | null
+          status?: Database["public"]["Enums"]["gladiator_match_status"]
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
+      gladiator_profiles: {
+        Row: {
+          glory_points: number
+          total_wins: number
+          updated_at: string
+          user_id: string
+          worldwide_score: number
+        }
+        Insert: {
+          glory_points?: number
+          total_wins?: number
+          updated_at?: string
+          user_id: string
+          worldwide_score?: number
+        }
+        Update: {
+          glory_points?: number
+          total_wins?: number
+          updated_at?: string
+          user_id?: string
+          worldwide_score?: number
+        }
+        Relationships: []
+      }
+      gladiator_queue: {
+        Row: {
+          concept_id: string | null
+          joined_at: string
+          subject_id: string | null
+          user_id: string
+        }
+        Insert: {
+          concept_id?: string | null
+          joined_at?: string
+          subject_id?: string | null
+          user_id: string
+        }
+        Update: {
+          concept_id?: string | null
+          joined_at?: string
+          subject_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      store_items: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          effect: Json
+          icon: string | null
+          id: string
+          name: string
+          price: number
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          effect?: Json
+          icon?: string | null
+          id?: string
+          name: string
+          price: number
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          effect?: Json
+          icon?: string | null
+          id?: string
+          name?: string
+          price?: number
+          slug?: string
+        }
+        Relationships: []
+      }
+      user_inventory: {
+        Row: {
+          created_at: string
+          id: number
+          item_id: string
+          quantity: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          item_id: string
+          quantity?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          item_id?: string
+          quantity?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      global_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: number
+          kind: Database["public"]["Enums"]["chat_message_kind"]
+          payload: Json
+          persona_slug: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: number
+          kind?: Database["public"]["Enums"]["chat_message_kind"]
+          payload?: Json
+          persona_slug?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: number
+          kind?: Database["public"]["Enums"]["chat_message_kind"]
+          payload?: Json
+          persona_slug?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       gauntlet_attempts: {
         Row: {
           concept_id: string
@@ -239,6 +464,7 @@ export type Database = {
           is_ranked: boolean
           performance: number
           persona_slug: string
+          slang_verdict: string | null
           total_count: number
           user_id: string
           xp_awarded: number
@@ -256,6 +482,7 @@ export type Database = {
           is_ranked?: boolean
           performance: number
           persona_slug: string
+          slang_verdict?: string | null
           total_count?: number
           user_id: string
           xp_awarded: number
@@ -273,6 +500,7 @@ export type Database = {
           is_ranked?: boolean
           performance?: number
           persona_slug?: string
+          slang_verdict?: string | null
           total_count?: number
           user_id?: string
           xp_awarded?: number
@@ -384,6 +612,36 @@ export type Database = {
           updated_at?: string
           user_id?: string
           word_count?: number | null
+        }
+        Relationships: []
+      }
+      room_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: number
+          kind: Database["public"]["Enums"]["chat_message_kind"]
+          payload: Json
+          room_id: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: number
+          kind?: Database["public"]["Enums"]["chat_message_kind"]
+          payload?: Json
+          room_id: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: number
+          kind?: Database["public"]["Enums"]["chat_message_kind"]
+          payload?: Json
+          room_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -551,6 +809,17 @@ export type Database = {
         Args: { p_xp: number }
         Returns: Database["public"]["Enums"]["rank_tier"]
       }
+      dequeue_gladiator_partner: {
+        Args: {
+          p_bot_id: string
+          p_concept_id?: string
+          p_current_question: Json
+          p_force_bot?: boolean
+          p_subject_id?: string
+          p_user_id: string
+        }
+        Returns: string | null
+      }
       dequeue_blitz_partner: {
         Args: {
           p_concept_id: string
@@ -559,6 +828,44 @@ export type Database = {
           p_user_id: string
         }
         Returns: string | null
+      }
+      insert_global_message: {
+        Args: {
+          p_content: string
+          p_kind?: Database["public"]["Enums"]["chat_message_kind"]
+          p_payload?: Json
+          p_persona_slug?: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["Tables"]["global_messages"]["Row"]
+      }
+      insert_room_message: {
+        Args: {
+          p_content: string
+          p_kind?: Database["public"]["Enums"]["chat_message_kind"]
+          p_payload?: Json
+          p_room_id: string
+          p_user_id: string
+        }
+        Returns: Database["public"]["Tables"]["room_messages"]["Row"]
+      }
+      process_gladiator_hit: {
+        Args: {
+          p_actor_id: string
+          p_damage?: number
+          p_is_correct: boolean
+          p_match_id: string
+          p_points_on_correct?: number
+        }
+        Returns: Database["public"]["Tables"]["gladiator_matches"]["Row"]
+      }
+      purchase_store_item: {
+        Args: { p_item_id: string; p_user_id: string }
+        Returns: Database["public"]["Tables"]["user_inventory"]["Row"]
+      }
+      resolve_gladiator_timeout: {
+        Args: { p_match_id: string }
+        Returns: Database["public"]["Tables"]["gladiator_matches"]["Row"]
       }
       record_blitz_answer: {
         Args: {
@@ -590,10 +897,22 @@ export type Database = {
         Args: { p_match_id: string }
         Returns: Database["public"]["Tables"]["blitz_matches"]["Row"]
       }
+      submit_gladiator_answer: {
+        Args: {
+          p_actor_id: string
+          p_answered_at?: string
+          p_choice: number
+          p_match_id: string
+        }
+        Returns: Database["public"]["Tables"]["gladiator_matches"]["Row"]
+      }
     }
     Enums: {
       blitz_state: "WAITING" | "STUDY" | "BLITZ" | "FINISHED" | "ABANDONED"
+      chat_message_kind: "text" | "run_share" | "system"
       flashcard_source: "colosseum" | "gauntlet" | "study_room" | "blitz"
+      gladiator_combat_phase: "QUESTION" | "RESOLVING" | "FINISHED"
+      gladiator_match_status: "IN_PROGRESS" | "P1_WON" | "P2_WON"
       radio_status: "pending" | "scripting" | "voicing" | "ready" | "failed"
       rank_tier:
         | "Freshman"
@@ -614,6 +933,11 @@ export type BlitzState = Database["public"]["Enums"]["blitz_state"]
 export type StudyRoomState = Database["public"]["Enums"]["study_room_state"]
 export type FlashcardSource = Database["public"]["Enums"]["flashcard_source"]
 export type RadioStatus = Database["public"]["Enums"]["radio_status"]
+export type ChatMessageKind = Database["public"]["Enums"]["chat_message_kind"]
+export type GladiatorCombatPhase =
+  Database["public"]["Enums"]["gladiator_combat_phase"]
+export type GladiatorMatchStatus =
+  Database["public"]["Enums"]["gladiator_match_status"]
 
 export type UserRow = Database["public"]["Tables"]["users"]["Row"]
 export type SubjectRow = Database["public"]["Tables"]["subjects"]["Row"]
@@ -631,5 +955,17 @@ export type StudyRoomRow = Database["public"]["Tables"]["study_rooms"]["Row"]
 export type StudyRoomMemberRow =
   Database["public"]["Tables"]["study_room_members"]["Row"]
 export type FlashcardRow = Database["public"]["Tables"]["flashcards"]["Row"]
+export type GlobalMessageRow =
+  Database["public"]["Tables"]["global_messages"]["Row"]
+export type GladiatorProfileRow =
+  Database["public"]["Tables"]["gladiator_profiles"]["Row"]
+export type StoreItemRow = Database["public"]["Tables"]["store_items"]["Row"]
+export type UserInventoryRow =
+  Database["public"]["Tables"]["user_inventory"]["Row"]
+export type GladiatorMatchRow =
+  Database["public"]["Tables"]["gladiator_matches"]["Row"]
+export type GladiatorQueueRow =
+  Database["public"]["Tables"]["gladiator_queue"]["Row"]
 export type RadioEpisodeRow =
   Database["public"]["Tables"]["radio_episodes"]["Row"]
+export type RoomMessageRow = Database["public"]["Tables"]["room_messages"]["Row"]

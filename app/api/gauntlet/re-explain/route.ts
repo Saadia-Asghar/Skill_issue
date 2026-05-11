@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { isAnthropicConfigured } from "@/lib/ai/client";
 import { streamReExplanation } from "@/lib/ai/explain";
 import { getPersona } from "@/lib/ai/personas";
-import { getSession } from "@/lib/ai/store";
+import { consecutiveRoastStreak, getSession, recentVerdicts } from "@/lib/ai/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,6 +78,9 @@ export async function POST(req: Request) {
     question: question.q,
     userChoice: question.choices[userChoice] ?? "(no answer)",
     correctAnswer: question.choices[question.correct_index],
+    roastToastVerdict: recentVerdicts(sessionId, 1)[0],
+    recentVerdicts: recentVerdicts(sessionId, 3),
+    losingStreak: consecutiveRoastStreak(sessionId),
   });
 
   return result.toTextStreamResponse();

@@ -1,68 +1,46 @@
 @import "tailwindcss";
 
-/*
- * ============================================================================
- * Professor Decompose — ARCADE THEME
- * ============================================================================
- *
- * Bright, saturated, cartoonish. Heavy bottom-borders for a chunky physical
- * feel. Bouncy presses. Glowing pulses. Retro arcade typography via Fredoka.
- *
- * Palette
- *   Neon Lime      #b6ff3c   the energetic accent (success, "go", health up)
- *   Bold Purple    #8b5cf6   the brand backbone (Daily Drop, persona grid)
- *   Bright Cyan    #22d3ee   secondary actions, links, focus rings
- *   Hot Magenta    #f0386b   danger / streak break / loss
- *   Sunshine Gold  #ffd62e   reward / XP / first place
- *   Tangerine      #ff8a3d   warning / streak fire
- *   Ocean Floor    #0b0820   background base
- *   Deep Twilight  #161029   surface
- *   Midnight Sky   #221a3a   surface-2
- *
- * Game depth pattern
- *   Every interactive surface has a "skin" (top face) + a darker bottom border
- *   that disappears on `:active` and the element shifts down 4px. That gives
- *   the chunky physical-button feel of mobile arcade games (Subway Surfers,
- *   Duolingo, Sandbox) without any 3D library.
- */
-
 :root {
-  /* base canvas */
-  --background: #0b0820;
-  --foreground: #fff8e7;
-  --muted: #b8aedc;
-  --surface: #161029;
-  --surface-2: #221a3a;
-  --border: #3a2c66;
+  /* Dark mode only - Galaxy Void */
+  --bg-base: #12101e;
+  --bg-surface: #1e1b2e;
+  --text-main: #fdfbf7;
+  --text-muted: #9ca3af;
+  --border-heavy: #373351;
+  --shadow-solid: #09080f;
 
-  /* arcade palette */
-  --accent: #8b5cf6;       /* bold purple — brand */
-  --accent-2: #22d3ee;     /* bright cyan — secondary */
-  --lime: #b6ff3c;         /* neon lime — success / go */
-  --gold: #ffd62e;         /* sunshine — XP / first place */
-  --tangerine: #ff8a3d;    /* warning / streak */
-  --magenta: #f0386b;      /* hot magenta — danger / loss */
-  --silver: #d6e0ff;       /* second place */
-  --bronze: #f0a35a;       /* third place */
+  /* Global accents */
+  --mario-red: #e52521;
+  --ice-blue: #43b0f1;
+  --1up-green: #26ce55;
+  --coin-gold: #ffce00;
 
-  --danger: var(--magenta);
-  --success: var(--lime);
-  --warning: var(--tangerine);
+  /* compatibility aliases consumed by existing components */
+  --background: var(--bg-base);
+  --foreground: var(--text-main);
+  --muted: var(--text-muted);
+  --surface: var(--bg-surface);
+  --surface-2: color-mix(in srgb, var(--bg-surface) 86%, #09080f);
+  --border: var(--border-heavy);
+  --accent: var(--ice-blue);
+  --accent-2: var(--ice-blue);
+  --lime: var(--1up-green);
+  --gold: var(--coin-gold);
+  --tangerine: #ff9a2e;
+  --magenta: var(--mario-red);
+  --silver: #d6e0ff;
+  --bronze: #f0a35a;
+  --danger: var(--mario-red);
+  --success: var(--1up-green);
+  --warning: #ff9a2e;
 
-  /* typography */
-  --font-display: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-fredoka), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bungee), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
 
-  /* depth tokens — for "chunky physical button" pattern */
-  --depth-shadow: 0 6px 0 0 var(--depth-color, rgba(0, 0, 0, 0.5));
-  --depth-translate: translateY(0);
-  --depth-translate-active: translateY(4px);
-
-  /* radii */
   --radius-sm: 0.625rem;
-  --radius-md: 1rem;
-  --radius-lg: 1.5rem;
-  --radius-xl: 2rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.75rem;
   --radius-pill: 9999px;
 }
 
@@ -84,33 +62,18 @@
   --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --font-sans: var(--font-fredoka);
-  --font-display: var(--font-fredoka);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-bungee);
 }
 
 /* ----------------------------- base reset ------------------------------- */
 
 html,
 body {
-  background:
-    radial-gradient(
-      ellipse 70% 55% at 15% 0%,
-      rgba(139, 92, 246, 0.28),
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 70% 55% at 90% 5%,
-      rgba(34, 211, 238, 0.22),
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 60% 50% at 80% 110%,
-      rgba(182, 255, 60, 0.16),
-      transparent 60%
-    ),
-    var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-base);
+  color: var(--text-main);
   min-height: 100%;
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
 }
 
 body {
@@ -119,6 +82,37 @@ body {
   font-weight: 500;
   letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
+}
+
+p,
+li,
+label,
+input,
+textarea,
+select {
+  color: var(--text-main);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Gamified spacing/layout canvas */
+.layout-canvas {
+  padding: 1rem;
+}
+@media (min-width: 1024px) {
+  .layout-canvas {
+    padding: 2rem;
+  }
 }
 
 /* default border colour for the legacy Tailwind v4 reset */
@@ -174,30 +168,29 @@ body {
   letter-spacing: 0.01em;
   border-radius: var(--radius-md);
   padding: 0.65rem 1.25rem;
-  background: var(--skin, var(--accent));
+  background: var(--skin, var(--ice-blue));
   color: var(--ink, #1a0f00);
   border: 2px solid rgba(0, 0, 0, 0.18);
-  box-shadow:
-    0 6px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 8px 24px -8px rgba(0, 0, 0, 0.5);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
   transform: translateY(0);
   transition:
-    transform 80ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 80ms ease-out,
-    filter 120ms ease-out;
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease;
   cursor: pointer;
   user-select: none;
 }
 
-.arcade:hover:not(:disabled) {
+.arcade:hover:not(:disabled),
+.arcade:focus-visible:not(:disabled) {
   filter: brightness(1.06) saturate(1.06);
+  transform: translateY(2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 .arcade:active:not(:disabled) {
-  transform: translateY(6px);
-  box-shadow:
-    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  transform: translateY(3px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 .arcade:disabled {
@@ -210,30 +203,22 @@ body {
   padding: 0.4rem 0.85rem;
   font-size: 0.8rem;
   border-radius: var(--radius-sm);
-  box-shadow:
-    0 4px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 6px 16px -8px rgba(0, 0, 0, 0.5);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
 }
 .arcade-sm:active:not(:disabled) {
-  transform: translateY(4px);
-  box-shadow:
-    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 2px 6px -2px rgba(0, 0, 0, 0.4);
+  transform: translateY(3px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 .arcade-lg {
   padding: 0.95rem 1.75rem;
   font-size: 1.05rem;
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 8px 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 12px 30px -10px rgba(0, 0, 0, 0.55);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
 }
 .arcade-lg:active:not(:disabled) {
-  transform: translateY(8px);
-  box-shadow:
-    0 0 0 0 var(--shadow, rgba(0, 0, 0, 0.35)),
-    0 2px 10px -2px rgba(0, 0, 0, 0.4);
+  transform: translateY(3px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* ghost arcade variant — outline-only */
@@ -241,11 +226,32 @@ body {
   background: var(--surface-2);
   color: var(--foreground);
   border-color: var(--border);
-  box-shadow:
-    0 5px 0 0 var(--surface);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
 }
 .arcade.ghost:active:not(:disabled) {
-  box-shadow: 0 0 0 0 var(--surface);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Prompted tactile utility classes */
+.arcade-card {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-heavy);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--shadow-solid);
+  color: var(--text-main);
+}
+
+.arcade-btn {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-heavy);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--shadow-solid);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.arcade-btn:hover,
+.arcade-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--shadow-solid);
 }
 
 /* ------------------------ chunky game-card surface ---------------------- */
@@ -257,12 +263,46 @@ body {
 .game-card {
   position: relative;
   background: var(--skin, var(--surface));
+  color: var(--text-main);
   border: 2px solid rgba(0, 0, 0, 0.25);
   border-radius: var(--radius-lg);
-  box-shadow:
-    0 8px 0 0 var(--shadow, var(--border)),
-    0 18px 40px -16px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.game-card:hover {
+  transform: translateY(2px);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+svg {
+  color: currentColor;
+}
+
+/* Clerk profile modal contrast fallback */
+[class^="cl-"],
+[class*=" cl-"] {
+  color: inherit;
+}
+
+.cl-userProfile-root,
+.cl-userProfileModal-root,
+.cl-card,
+.cl-pageScrollBox {
+  color: var(--text-main);
+}
+
+.cl-userProfile-root .cl-profileSectionTitleText,
+.cl-userProfile-root .cl-formFieldLabel,
+.cl-userProfile-root .cl-navbarButtonText,
+.cl-userProfile-root .cl-userPreviewMainIdentifier,
+.cl-userProfile-root .cl-userPreviewSecondaryIdentifier {
+  color: var(--text-main);
+}
+
+.cl-userProfile-root .cl-formFieldHintText,
+.cl-userProfile-root .cl-formFieldSuccessText {
+  color: var(--muted);
 }
 
 /* --------------------------- glow / pulse ------------------------------ */

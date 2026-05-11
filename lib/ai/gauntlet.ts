@@ -3,6 +3,10 @@ import "server-only";
 import { z } from "zod";
 
 import { gauntletModel } from "./client";
+import {
+  normalizeQuestionPool,
+  type NormalizedQuestion,
+} from "./question-normalize";
 import type { Persona } from "./personas";
 import { safeGenerateObject } from "./structured";
 
@@ -30,6 +34,16 @@ export const GauntletSchema = z.object({
   questions: z.array(QuestionSchema).length(3),
 });
 
+const RelaxedQuestionSchema = z.object({
+  q: z.string(),
+  choices: z.array(z.string()).min(2).max(8),
+  correct_index: z.number().int().min(0).max(7),
+  gotcha: z.string(),
+});
+const RelaxedGauntletSchema = z.object({
+  questions: z.array(RelaxedQuestionSchema).min(1).max(8),
+});
+
 export type GauntletQuestion = z.infer<typeof QuestionSchema>;
 
 export type GenerateGauntletOptions = {
@@ -51,10 +65,7 @@ export async function generateGauntlet({
   text,
   explanation,
 }: GenerateGauntletOptions): Promise<GauntletQuestion[]> {
-  const object = await safeGenerateObject({
-    model: gauntletModel,
-    schema: GauntletSchema,
-    system: `You are a Socratic examiner generating a 3-question Comprehension Gauntlet.
+  const system = `You are a Socratic examiner generating a 3-question Comprehension Gauntlet.
 
 The student just read an explanation in the voice of: ${persona.name} (${persona.tagline}).
 
@@ -71,16 +82,36 @@ JSON SHAPE:
     { "q": "string", "choices": ["string","string","string","string"],
       "correct_index": 0|1|2|3, "gotcha": "string" }
   ]  // exactly 3 items
-}`,
-    prompt: [
-      `Source concept:`,
-      text.trim(),
-      ``,
-      `Explanation the student just read:`,
-      explanation.trim(),
-    ].join("\n"),
-    temperature: 0.4,
-  });
+}`;
+  const prompt = [
+    `Source concept:`,
+    text.trim(),
+    ``,
+    `Explanation the student just read:`,
+    explanation.trim(),
+  ].join("\n");
 
-  return object.questions;
+  try {
+    const object = await safeGenerateObject({
+      model: gauntletModel,
+      schema: GauntletSchema,
+      system,
+      prompt,
+      temperature: 0.4,
+    });
+    return object.questions;
+  } catch {
+    console.warn("[gauntlet] strict schema failed; repairing with relaxed parse");
+    const relaxed = await safeGenerateObject({
+      model: gauntletModel,
+      schema: RelaxedGauntletSchema,
+      system: `${system}
+
+CRITICAL: Exactly 4 choices per question. Never output 5+ choices.`,
+      prompt,
+      temperature: 0.4,
+    });
+    const repaired = normalizeQuestionPool(relaxed.questions, 3, 4);
+    return repaired as NormalizedQuestion[] as GauntletQuestion[];
+  }
 }

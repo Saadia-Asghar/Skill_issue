@@ -1,5 +1,6 @@
 import { Show } from "@clerk/nextjs";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { ArcadeLink } from "@/components/game/arcade-button";
 import { GameCard } from "@/components/game/game-card";
 import { getAnonServerSupabase } from "@/lib/supabase/server";
@@ -18,6 +19,7 @@ export default async function Home() {
     <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-24">
       {/* ============================== HERO ============================== */}
       <section className="flex flex-col items-center text-center">
+        <BrandMark className="mb-6" />
         <span
           className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.4em]"
           style={{

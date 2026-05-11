@@ -2,6 +2,7 @@ import { Show, UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { ArcadeLink } from "@/components/game/arcade-button";
 import { countDueToday } from "@/lib/flashcards/queries";
 
@@ -14,35 +15,21 @@ export async function Nav() {
       className="sticky top-0 z-40 backdrop-blur-md"
       style={{
         background:
-          "linear-gradient(180deg, rgba(11, 8, 32, 0.85), rgba(11, 8, 32, 0.6))",
+          "linear-gradient(180deg, color-mix(in srgb, var(--bg-base) 94%, transparent), color-mix(in srgb, var(--bg-base) 74%, transparent))",
         borderBottom: "2px solid var(--border)",
       }}
     >
-      <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-3">
+      <nav className="flex w-full items-center justify-between gap-3 py-3 pl-6 pr-1">
         <Link
           href="/"
-          className="group flex items-center gap-2.5"
+          className="group flex shrink-0 items-center gap-2.5"
         >
-          <span
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-sm font-extrabold text-white"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--accent), var(--accent-2))",
-              border: "2px solid rgba(0,0,0,0.35)",
-              boxShadow:
-                "0 4px 0 0 rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.45)",
-            }}
-          >
-            PD
-          </span>
-          <span className="text-base font-bold tracking-tight">
-            Professor{" "}
-            <span style={{ color: "var(--lime)" }}>Decompose</span>
-          </span>
+          <BrandMark compact />
         </Link>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pr-2">
           <NavLink href="/colosseum" label="Colosseum" icon="★" />
+          <NavLink href="/gladiator" label="Gladiator" icon="🏛" />
           <NavLink href="/learn" label="Learn" icon="◐" />
           <Show when="signed-in">
             <NavLink href="/blitz" label="Blitz" icon="⚔" />

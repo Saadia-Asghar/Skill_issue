@@ -77,7 +77,7 @@ export async function insertGlobalMessage(opts: {
   personaSlug?: string | null;
 }): Promise<void> {
   const supabase = await getServerSupabase();
-  const callInsert = async (userId: string | null) =>
+  const callInsertViaRpc = async (userId: string) =>
     supabase.rpc("insert_global_message", {
       p_user_id: userId,
       p_content: opts.content,
@@ -86,20 +86,26 @@ export async function insertGlobalMessage(opts: {
       p_persona_slug: opts.personaSlug ?? undefined,
     });
 
-  const { error } = await callInsert(opts.userId);
-  if (!error) return;
+  if (opts.userId) {
+    const { error } = await callInsertViaRpc(opts.userId);
+    if (!error) return;
 
-  // If FK to `users(clerk_id)` fails, gracefully degrade to anonymous posting.
-  const looksLikeUserFk =
-    error.code === "23503" ||
-    /global_messages_user_id_fkey|foreign key/i.test(error.message);
-  if (looksLikeUserFk && opts.userId) {
-    const retry = await callInsert(null);
-    if (!retry.error) return;
-    throw new Error(retry.error.message);
+    // If FK to `users(clerk_id)` fails, gracefully degrade to anonymous posting.
+    const looksLikeUserFk =
+      error.code === "23503" ||
+      /global_messages_user_id_fkey|foreign key/i.test(error.message);
+    if (!looksLikeUserFk) throw new Error(error.message);
   }
 
-  throw new Error(error.message);
+  // Anonymous fallback path (avoid RPC type contract requiring non-null user id).
+  const anonInsert = await supabase.from("global_messages").insert({
+    user_id: null,
+    persona_slug: opts.personaSlug ?? null,
+    kind: opts.kind ?? "text",
+    content: opts.content,
+    payload: (opts.payload ?? {}) as Json,
+  });
+  if (anonInsert.error) throw new Error(anonInsert.error.message);
 }
 
 export async function insertSystemGlobalMessage(opts: {

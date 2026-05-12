@@ -87,8 +87,8 @@ export function ChatDrawer() {
     el.scrollTop = el.scrollHeight;
   }, [messages, open]);
 
-  const canSend = text.trim().length > 0 && !sending;
   const myId = user?.id ?? null;
+  const canSend = text.trim().length > 0 && !sending && Boolean(myId);
   const title = useMemo(() => (open ? "Close Chat" : "Open Chat"), [open]);
 
   const send = async () => {
@@ -243,6 +243,11 @@ export function ChatDrawer() {
             className="border-t-2 p-3"
             style={{ borderColor: "var(--border)" }}
           >
+            {!myId ? (
+              <p className="mb-2 text-xs text-muted">
+                Sign in to send messages in Global Lobby.
+              </p>
+            ) : null}
             <div className="flex gap-2">
               <input
                 value={text}

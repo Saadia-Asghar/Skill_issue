@@ -1,5 +1,4 @@
 import { auth } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -18,30 +17,32 @@ import { todayUtc } from "@/lib/colosseum/xp";
 import { countDueToday } from "@/lib/flashcards/queries";
 import { fetchMyEpisodes } from "@/lib/radio/queries";
 import { rankProgress } from "@/lib/rank";
+import { getServerSupabase } from "@/lib/supabase/server";
 import type { RadioEpisodeRow, UserRow } from "@/lib/supabase/types";
+import { ensureUserRow } from "@/lib/users/ensure";
 
 export const dynamic = "force-dynamic";
 
-async function ensureUserRow(): Promise<UserRow | null> {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const host = h.get("host");
-  if (!host) return null;
-  const res = await fetch(`${proto}://${host}/api/users/sync`, {
-    method: "POST",
-    headers: { cookie: h.get("cookie") ?? "" },
-    cache: "no-store",
+async function loadProfile(userId: string): Promise<UserRow | null> {
+  await ensureUserRow(userId).catch(() => {
+    // Non-fatal: still attempt to read whatever profile row exists.
   });
-  if (!res.ok) return null;
-  const json = (await res.json()) as { user: UserRow };
-  return json.user;
+
+  const supabase = await getServerSupabase();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+  if (error) return null;
+  return data;
 }
 
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
 
-  const profile = await ensureUserRow();
+  const profile = await loadProfile(userId);
 
   const today = todayUtc();
   const [

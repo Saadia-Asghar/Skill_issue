@@ -155,7 +155,10 @@ export function ChatDrawer() {
         initial={false}
         animate={{ x: open ? 0 : 420 }}
         transition={{ type: "spring", stiffness: 280, damping: 30 }}
-        className="fixed bottom-0 right-0 top-[56px] z-40 w-full max-w-[420px] border-l-2"
+        className={`fixed bottom-0 right-0 top-[56px] z-40 w-full max-w-[420px] border-l-2 ${
+          open ? "pointer-events-auto" : "pointer-events-none"
+        }`}
+        aria-hidden={!open}
         style={{
           background:
             "linear-gradient(180deg, color-mix(in srgb, var(--surface) 85%, #020617), #09051a)",

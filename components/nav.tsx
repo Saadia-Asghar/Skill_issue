@@ -4,11 +4,9 @@ import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/brand-mark";
 import { ArcadeLink } from "@/components/game/arcade-button";
-import { countDueToday } from "@/lib/flashcards/queries";
 
 export async function Nav() {
   const { userId } = await auth();
-  const dueCount = userId ? await countDueToday(userId).catch(() => 0) : 0;
 
   return (
     <header
@@ -38,7 +36,6 @@ export async function Nav() {
               href="/flashcards"
               label="Cards"
               icon="▦"
-              badge={dueCount > 0 ? (dueCount > 99 ? "99+" : String(dueCount)) : null}
             />
             <NavLink href="/radio" label="Radio" icon="◉" />
             <NavLink href="/dashboard" label="Hub" icon="♦" />
@@ -77,6 +74,7 @@ function NavLink({
   return (
     <Link
       href={href}
+      prefetch
       className="group relative inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-bold text-muted transition hover:bg-surface hover:text-foreground"
     >
       {icon ? (

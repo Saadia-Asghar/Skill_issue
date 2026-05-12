@@ -70,21 +70,36 @@ export async function fetchRecentGlobalMessages(
 }
 
 export async function insertGlobalMessage(opts: {
-  userId: string;
+  userId: string | null;
   content: string;
   kind?: ChatMessageKind;
   payload?: Json;
   personaSlug?: string | null;
 }): Promise<void> {
   const supabase = await getServerSupabase();
-  const { error } = await supabase.rpc("insert_global_message", {
-    p_user_id: opts.userId,
-    p_content: opts.content,
-    p_kind: opts.kind ?? "text",
-    p_payload: (opts.payload ?? {}) as Json,
-    p_persona_slug: opts.personaSlug ?? undefined,
-  });
-  if (error) throw new Error(error.message);
+  const callInsert = async (userId: string | null) =>
+    supabase.rpc("insert_global_message", {
+      p_user_id: userId,
+      p_content: opts.content,
+      p_kind: opts.kind ?? "text",
+      p_payload: (opts.payload ?? {}) as Json,
+      p_persona_slug: opts.personaSlug ?? undefined,
+    });
+
+  const { error } = await callInsert(opts.userId);
+  if (!error) return;
+
+  // If FK to `users(clerk_id)` fails, gracefully degrade to anonymous posting.
+  const looksLikeUserFk =
+    error.code === "23503" ||
+    /global_messages_user_id_fkey|foreign key/i.test(error.message);
+  if (looksLikeUserFk && opts.userId) {
+    const retry = await callInsert(null);
+    if (!retry.error) return;
+    throw new Error(retry.error.message);
+  }
+
+  throw new Error(error.message);
 }
 
 export async function insertSystemGlobalMessage(opts: {

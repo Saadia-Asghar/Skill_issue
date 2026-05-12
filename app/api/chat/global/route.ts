@@ -51,7 +51,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    await ensureUserRow(userId);
+    await ensureUserRow(userId).catch(() => {
+      // Non-fatal: chat insert has a fallback path if the `users` row
+      // cannot be created yet in this environment.
+    });
     await insertGlobalMessage({
       userId,
       content,

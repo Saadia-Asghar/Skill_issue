@@ -52,12 +52,12 @@ bun install
 
 Copy `.env.example` to `.env.local`, then fill secrets. Current defaults target:
 
-- **Supabase:** [project linked in Cursor MCP](https://supabase.com/dashboard/project/yepiosgaycedcjpyjdnq) (`NEXT_PUBLIC_SUPABASE_*` in `.env.example` match MCP `get_project_url` / `get_publishable_keys`).
+- **Supabase:** [project linked in Cursor MCP](https://supabase.com/dashboard/project/gdmciybkdiuomowvpjyn) (`NEXT_PUBLIC_SUPABASE_*` in `.env.example` match MCP `get_project_url` / `get_publishable_keys`).
 - **Clerk:** **Skill_issue** app — open [Clerk Dashboard](https://dashboard.clerk.com) → your application → **Configure → API Keys**, and paste **Publishable** and **Secret** into `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
 - **Server profile sync:** add `SUPABASE_SERVICE_ROLE_KEY` from Supabase **Settings → API** (service_role) for reliable `users` row sync in production.
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://yepiosgaycedcjpyjdnq.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://gdmciybkdiuomowvpjyn.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 

@@ -36,6 +36,22 @@ import type { Database } from "./types";
  *   shipping to real users.
  */
 export async function getServerSupabase(): Promise<SupabaseClient<Database>> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  // Production-safe fallback: if service role key is present on the server,
+  // use it so user sync/profile writes don't depend on Clerk->Supabase JWT wiring.
+  if (serviceRoleKey) {
+    return createClient<Database>(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+  }
+
   const trusted =
     process.env.CLERK_SUPABASE_JWT_TRUSTED === "1" ||
     process.env.CLERK_SUPABASE_JWT_TRUSTED === "true";
@@ -44,8 +60,8 @@ export async function getServerSupabase(): Promise<SupabaseClient<Database>> {
     const { auth } = await import("@clerk/nextjs/server");
     const session = await auth();
     return createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+      supabaseUrl,
+      supabasePublishableKey,
       {
         accessToken: async () => session.getToken(),
         auth: {
@@ -68,8 +84,8 @@ export async function getServerSupabase(): Promise<SupabaseClient<Database>> {
  */
 export function getAnonServerSupabase(): SupabaseClient<Database> {
   return createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    supabaseUrl,
+    supabasePublishableKey,
     {
       auth: {
         persistSession: false,

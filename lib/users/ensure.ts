@@ -18,25 +18,23 @@ import { getServerSupabase } from "@/lib/supabase/server";
  * current user.
  */
 export async function ensureUserRow(userId: string): Promise<void> {
-  try {
-    const supabase = await getServerSupabase();
+  const supabase = await getServerSupabase();
 
-    const { data: existing, error: selectError } = await supabase
-      .from("users")
-      .select("clerk_id")
-      .eq("clerk_id", userId)
-      .maybeSingle();
-    if (selectError || existing) return;
+  const { data: existing, error: selectError } = await supabase
+    .from("users")
+    .select("clerk_id")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+  if (selectError) throw new Error(selectError.message);
+  if (existing) return;
 
-    const user = await currentUser().catch(() => null);
-    await supabase.from("users").insert({
-      clerk_id: userId,
-      username: user?.username ?? user?.firstName ?? null,
-      email: user?.primaryEmailAddress?.emailAddress ?? null,
-      avatar_url: user?.imageUrl ?? null,
-      last_active: new Date().toISOString(),
-    });
-  } catch {
-    // Non-fatal by design: callers should keep rendering and use fallbacks.
-  }
+  const user = await currentUser().catch(() => null);
+  const { error: insertError } = await supabase.from("users").insert({
+    clerk_id: userId,
+    username: user?.username ?? user?.firstName ?? null,
+    email: user?.primaryEmailAddress?.emailAddress ?? null,
+    avatar_url: user?.imageUrl ?? null,
+    last_active: new Date().toISOString(),
+  });
+  if (insertError) throw new Error(insertError.message);
 }

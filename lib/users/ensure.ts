@@ -18,22 +18,25 @@ import { getServerSupabase } from "@/lib/supabase/server";
  * current user.
  */
 export async function ensureUserRow(userId: string): Promise<void> {
-  const supabase = await getServerSupabase();
+  try {
+    const supabase = await getServerSupabase();
 
-  const { data: existing } = await supabase
-    .from("users")
-    .select("clerk_id")
-    .eq("clerk_id", userId)
-    .maybeSingle();
+    const { data: existing, error: selectError } = await supabase
+      .from("users")
+      .select("clerk_id")
+      .eq("clerk_id", userId)
+      .maybeSingle();
+    if (selectError || existing) return;
 
-  if (existing) return;
-
-  const user = await currentUser().catch(() => null);
-  await supabase.from("users").insert({
-    clerk_id: userId,
-    username: user?.username ?? user?.firstName ?? null,
-    email: user?.primaryEmailAddress?.emailAddress ?? null,
-    avatar_url: user?.imageUrl ?? null,
-    last_active: new Date().toISOString(),
-  });
+    const user = await currentUser().catch(() => null);
+    await supabase.from("users").insert({
+      clerk_id: userId,
+      username: user?.username ?? user?.firstName ?? null,
+      email: user?.primaryEmailAddress?.emailAddress ?? null,
+      avatar_url: user?.imageUrl ?? null,
+      last_active: new Date().toISOString(),
+    });
+  } catch {
+    // Non-fatal by design: callers should keep rendering and use fallbacks.
+  }
 }

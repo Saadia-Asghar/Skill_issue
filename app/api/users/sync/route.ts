@@ -24,6 +24,20 @@ export async function POST() {
 
   const user = await currentUser();
   const supabase = await getServerSupabase();
+  const fallbackUser = {
+    clerk_id: userId,
+    username: user?.username ?? user?.firstName ?? "Player",
+    email: user?.primaryEmailAddress?.emailAddress ?? null,
+    avatar_url: user?.imageUrl ?? null,
+    elo: 1200,
+    xp: 0,
+    rank: rankForXp(0),
+    current_streak: 0,
+    last_streak_date: null,
+    last_active: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
   const { data: existing, error: selectError } = await supabase
     .from("users")
@@ -33,10 +47,13 @@ export async function POST() {
 
   if (selectError) {
     const h = humanizeSupabaseError(selectError.message);
-    return NextResponse.json(
-      { error: h.message, hint: h.hint },
-      { status: h.status },
-    );
+    return NextResponse.json({
+      user: fallbackUser,
+      created: false,
+      degraded: true,
+      warning: h.message,
+      hint: h.hint,
+    });
   }
 
   const payload = {
@@ -55,10 +72,13 @@ export async function POST() {
       .single();
     if (error) {
       const h = humanizeSupabaseError(error.message);
-      return NextResponse.json(
-        { error: h.message, hint: h.hint },
-        { status: h.status },
-      );
+      return NextResponse.json({
+        user: fallbackUser,
+        created: false,
+        degraded: true,
+        warning: h.message,
+        hint: h.hint,
+      });
     }
     return NextResponse.json({ user: data, created: true });
   }
@@ -76,10 +96,13 @@ export async function POST() {
 
   if (error) {
     const h = humanizeSupabaseError(error.message);
-    return NextResponse.json(
-      { error: h.message, hint: h.hint },
-      { status: h.status },
-    );
+    return NextResponse.json({
+      user: fallbackUser,
+      created: false,
+      degraded: true,
+      warning: h.message,
+      hint: h.hint,
+    });
   }
   return NextResponse.json({ user: data, created: false });
 }

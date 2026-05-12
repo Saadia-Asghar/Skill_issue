@@ -35,7 +35,7 @@ export function humanizeSupabaseError(e: unknown): HumanizedSupabaseError {
         "(blitz match-making, study rooms, radio episodes, ranked gauntlet attempts).",
       hint:
         "Open https://dashboard.clerk.com/setup/supabase, paste your Supabase " +
-        "project URL (https://fuvhzltjhfvnvohjxybe.supabase.co), and click Activate. " +
+        `project URL (${process.env.NEXT_PUBLIC_SUPABASE_URL ?? "your NEXT_PUBLIC_SUPABASE_URL"}), and click Activate. ` +
         "Then reload this page — no code change needed.",
     };
   }

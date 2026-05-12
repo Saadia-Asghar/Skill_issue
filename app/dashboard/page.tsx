@@ -55,11 +55,11 @@ export default async function DashboardPage() {
     flashcardsDue,
     radioEpisodes,
   ] = await Promise.all([
-    fetchDailyDrop(today),
-    getDeansList(5),
-    getMyLeaderboardRow(userId),
-    fetchRankedAttempt(userId, today),
-    fetchRecentAttempt(userId),
+    fetchDailyDrop(today).catch(() => null),
+    getDeansList(5).catch(() => []),
+    getMyLeaderboardRow(userId).catch(() => null),
+    fetchRankedAttempt(userId, today).catch(() => null),
+    fetchRecentAttempt(userId).catch(() => null),
     countDueToday(userId).catch(() => 0),
     fetchMyEpisodes(userId).catch(() => [] as RadioEpisodeRow[]),
   ]);

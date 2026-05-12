@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -41,6 +41,7 @@ async function loadProfile(userId: string): Promise<UserRow | null> {
 export default async function DashboardPage() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
+  const clerkUser = await currentUser().catch(() => null);
 
   const profile = await loadProfile(userId);
 
@@ -64,31 +65,22 @@ export default async function DashboardPage() {
   ]);
   const latestRadio = radioEpisodes[0] ?? null;
 
-  if (!profile) {
-    return (
-      <div className="mx-auto w-full max-w-3xl px-6 py-16">
-        <GameCard skin="magenta" className="p-8">
-          <p
-            className="text-[10px] font-bold uppercase tracking-[0.4em]"
-            style={{ color: "var(--magenta)" }}
-          >
-            ▌ system fault ▌
-          </p>
-          <h1 className="mt-3 text-3xl font-bold">Couldn&apos;t load profile</h1>
-          <p className="mt-3 text-muted">
-            We couldn&apos;t reach the Fingerprint DB. Check that{" "}
-            <code className="font-mono text-[color:var(--lime)]">
-              NEXT_PUBLIC_SUPABASE_URL
-            </code>{" "}
-            and your Clerk keys are set, and that the Clerk &lt;-&gt; Supabase
-            third-party auth integration is configured.
-          </p>
-        </GameCard>
-      </div>
-    );
-  }
+  const safeProfile: UserRow = profile ?? {
+    clerk_id: userId,
+    username: clerkUser?.username ?? clerkUser?.firstName ?? "Player",
+    email: clerkUser?.primaryEmailAddress?.emailAddress ?? null,
+    avatar_url: clerkUser?.imageUrl ?? null,
+    elo: 1200,
+    xp: 0,
+    rank: "Freshman",
+    current_streak: 0,
+    last_streak_date: null,
+    last_active: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 
-  const progress = rankProgress(profile.xp, profile.rank);
+  const progress = rankProgress(safeProfile.xp, safeProfile.rank);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-12">
@@ -102,7 +94,7 @@ export default async function DashboardPage() {
               ◉ player one · ready
             </p>
             <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-              {profile.username ?? "Anonymous Scholar"}
+              {safeProfile.username ?? "Anonymous Scholar"}
             </h1>
           </div>
           <div
@@ -128,7 +120,7 @@ export default async function DashboardPage() {
         <section className="grid gap-4 md:grid-cols-3">
           <StatCard
             label="Elo Rating"
-            value={profile.elo.toLocaleString()}
+            value={safeProfile.elo.toLocaleString()}
             sub={
               me
                 ? `Dean's List #${me.rank}`
@@ -139,10 +131,10 @@ export default async function DashboardPage() {
           />
           <StatCard
             label="Rank"
-            value={profile.rank}
+            value={safeProfile.rank}
             sub={
               progress.next > progress.current
-                ? `${profile.xp.toLocaleString()} / ${progress.next.toLocaleString()} XP`
+                ? `${safeProfile.xp.toLocaleString()} / ${progress.next.toLocaleString()} XP`
                 : "Max rank reached"
             }
             accent="var(--accent)"
@@ -151,7 +143,7 @@ export default async function DashboardPage() {
           />
           <StatCard
             label="Streak"
-            value={`${profile.current_streak}d`}
+            value={`${safeProfile.current_streak}d`}
             sub={
               todaysRanked
                 ? "Today's drop secured"

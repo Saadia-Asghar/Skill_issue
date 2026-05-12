@@ -38,38 +38,39 @@ create index if not exists room_messages_room_created_idx
 alter table public.global_messages enable row level security;
 alter table public.room_messages enable row level security;
 
-create policy if not exists "global_messages read all"
-  on public.global_messages
-  for select
-  using (true);
-
-create policy if not exists "room_messages read all"
-  on public.room_messages
-  for select
-  using (true);
-
-create policy if not exists "global_messages insert own"
-  on public.global_messages
-  for insert
-  with check (auth.jwt() ->> 'sub' = user_id);
-
-create policy if not exists "room_messages insert own"
-  on public.room_messages
-  for insert
-  with check (auth.jwt() ->> 'sub' = user_id);
-
--- Demo-mode permissive anon write policies (mirrors existing demo strategy).
-create policy if not exists "demo: global_messages anon all"
-  on public.global_messages
-  for all to anon
-  using (true)
-  with check (true);
-
-create policy if not exists "demo: room_messages anon all"
-  on public.room_messages
-  for all to anon
-  using (true)
-  with check (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'global_messages' and policyname = 'global_messages read all'
+  ) then
+    create policy "global_messages read all" on public.global_messages for select using (true);
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'room_messages' and policyname = 'room_messages read all'
+  ) then
+    create policy "room_messages read all" on public.room_messages for select using (true);
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'global_messages' and policyname = 'global_messages insert own'
+  ) then
+    create policy "global_messages insert own" on public.global_messages for insert with check (auth.jwt() ->> 'sub' = user_id);
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'room_messages' and policyname = 'room_messages insert own'
+  ) then
+    create policy "room_messages insert own" on public.room_messages for insert with check (auth.jwt() ->> 'sub' = user_id);
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'global_messages' and policyname = 'demo: global_messages anon all'
+  ) then
+    create policy "demo: global_messages anon all" on public.global_messages for all to anon using (true) with check (true);
+  end if;
+  if not exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'room_messages' and policyname = 'demo: room_messages anon all'
+  ) then
+    create policy "demo: room_messages anon all" on public.room_messages for all to anon using (true) with check (true);
+  end if;
+end $$;
 
 create or replace function public.insert_global_message(
   p_user_id text,

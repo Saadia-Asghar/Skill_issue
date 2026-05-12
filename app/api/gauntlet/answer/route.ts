@@ -11,10 +11,11 @@ import {
 } from "@/lib/ai/store";
 import { getPersona } from "@/lib/ai/personas";
 import { autoForgeFlashcards } from "@/lib/flashcards/generate";
-import { getServerSupabase } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const VERDICT_TIMEOUT_MS = 1200;
 
 /**
  * POST /api/gauntlet/answer
@@ -70,53 +71,38 @@ export async function POST(req: Request) {
 
   const correct = choice === question.correct_index;
   const persona = getPersona(session.personaSlug);
-  const dbRecentVerdicts: string[] = [];
-  if (userId) {
-    const supabase = await getServerSupabase();
-    const [{ data: gauntletVerdicts }, { data: blitzVerdicts }] = await Promise.all([
-      supabase
-        .from("gauntlet_attempts")
-        .select("slang_verdict")
-        .eq("user_id", userId)
-        .not("slang_verdict", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(2),
-      supabase
-        .from("blitz_answers")
-        .select("slang_verdict")
-        .eq("user_id", userId)
-        .not("slang_verdict", "is", null)
-        .order("answered_at", { ascending: false })
-        .limit(2),
-    ]);
-    for (const row of gauntletVerdicts ?? []) {
-      if (typeof row.slang_verdict === "string") dbRecentVerdicts.push(row.slang_verdict);
-    }
-    for (const row of blitzVerdicts ?? []) {
-      if (typeof row.slang_verdict === "string") dbRecentVerdicts.push(row.slang_verdict);
-    }
-  }
   const sessionRecent = recentVerdicts(sessionId, 2);
   const roastStreak = consecutiveRoastStreak(sessionId) + (correct ? 0 : 1);
-  const verdict = await generateRoastToastVerdict({
-    persona: persona ?? {
-      slug: "professor",
-      name: "The Professor",
-      tagline: "Classic Socratic pedagogy with rigor",
-      isCreator: false,
-      accentColor: "#3b82f6",
-      systemPrompt: "",
-      reExplainPrompt: "",
-      voiceId: "",
-    },
-    conceptText: session.text,
-    question: question.q,
-    userChoice: question.choices[choice] ?? "(no answer)",
-    correctAnswer: question.choices[question.correct_index],
-    isCorrect: correct,
-    recentVerdicts: [...dbRecentVerdicts, ...sessionRecent].slice(-3),
-    losingStreak: roastStreak,
-  });
+  const fallbackVerdict = {
+    slang_verdict: correct
+      ? "Clean hit. You read the pattern and landed it."
+      : "Not quite. Quick reset and run it back sharper.",
+    mode: (correct ? "toast" : "roast") as "toast" | "roast",
+  };
+  const verdict = await Promise.race([
+    generateRoastToastVerdict({
+      persona: persona ?? {
+        slug: "professor",
+        name: "The Professor",
+        tagline: "Classic Socratic pedagogy with rigor",
+        isCreator: false,
+        accentColor: "#3b82f6",
+        systemPrompt: "",
+        reExplainPrompt: "",
+        voiceId: "",
+      },
+      conceptText: session.text,
+      question: question.q,
+      userChoice: question.choices[choice] ?? "(no answer)",
+      correctAnswer: question.choices[question.correct_index],
+      isCorrect: correct,
+      recentVerdicts: sessionRecent.slice(-3),
+      losingStreak: roastStreak,
+    }),
+    new Promise<typeof fallbackVerdict>((resolve) =>
+      setTimeout(() => resolve(fallbackVerdict), VERDICT_TIMEOUT_MS),
+    ),
+  ]);
   recordVerdict(sessionId, { text: verdict.slang_verdict, mode: verdict.mode });
 
   // Detect "last question of the gauntlet": the user has now submitted an
@@ -128,20 +114,22 @@ export async function POST(req: Request) {
     Object.keys(session.answers).length === session.questions.length;
   if (allAnswered) {
     if (userId) {
-      try {
-        const cards = await autoForgeFlashcards({
-          userId,
-          conceptId: session.conceptId,
-          conceptTitle:
-            session.text.split("\n")[0]?.slice(0, 80).trim() || "Free play",
-          conceptText: session.text,
-          source: session.conceptId ? "colosseum" : "gauntlet",
-          personaSlug: session.personaSlug,
-        });
-        flashcardsForged = cards.length;
-      } catch (e) {
-        console.error("[gauntlet/answer] flashcard auto-forge failed", e);
-      }
+      // Run flashcard forging out-of-band so answer feedback is instant.
+      void (async () => {
+        try {
+          await autoForgeFlashcards({
+            userId,
+            conceptId: session.conceptId,
+            conceptTitle:
+              session.text.split("\n")[0]?.slice(0, 80).trim() || "Free play",
+            conceptText: session.text,
+            source: session.conceptId ? "colosseum" : "gauntlet",
+            personaSlug: session.personaSlug,
+          });
+        } catch (e) {
+          console.error("[gauntlet/answer] flashcard auto-forge failed", e);
+        }
+      })();
     }
   }
 

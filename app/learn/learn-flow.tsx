@@ -47,6 +47,9 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
   const [questions, setQuestions] = useState<ServerQuestion[]>([]);
   const [activeQ, setActiveQ] = useState(0);
   const [results, setResults] = useState<Record<number, AnswerResult>>({});
+  const [pendingChoice, setPendingChoice] = useState<
+    Record<number, number | null>
+  >({});
   const [reExplanations, setReExplanations] = useState<Record<number, string>>(
     {},
   );
@@ -71,6 +74,7 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
     setQuestions([]);
     setActiveQ(0);
     setResults({});
+    setPendingChoice({});
     setReExplanations({});
     setStreamingReExplain(null);
   }, []);
@@ -140,6 +144,7 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
       setQuestions(json.questions);
       setActiveQ(0);
       setResults({});
+      setPendingChoice({});
       setReExplanations({});
       setPhase("gauntlet");
     } catch (e) {
@@ -151,8 +156,9 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
 
   const submitAnswer = useCallback(
     async (choice: number) => {
-      if (!sessionId || results[activeQ]) return;
+      if (!sessionId || results[activeQ] || pendingChoice[activeQ] != null) return;
       primeSlangSpeech();
+      setPendingChoice((prev) => ({ ...prev, [activeQ]: choice }));
 
       const res = await fetch("/api/gauntlet/answer", {
         method: "POST",
@@ -162,12 +168,14 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
       const json: AnswerResult & { error?: string } = await res.json();
       if (!res.ok) {
         setError(json.error ?? `HTTP ${res.status}`);
+        setPendingChoice((prev) => ({ ...prev, [activeQ]: null }));
         return;
       }
       setResults((prev) => ({ ...prev, [activeQ]: json }));
+      setPendingChoice((prev) => ({ ...prev, [activeQ]: null }));
       if (!json.correct) setShakeKey((k) => k + 1);
     },
-    [sessionId, activeQ, results],
+    [sessionId, activeQ, results, pendingChoice],
   );
 
   const requestReExplanation = useCallback(async () => {
@@ -360,6 +368,7 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
           questions={questions}
           activeQ={activeQ}
           result={results[activeQ] ?? null}
+          pendingChoice={pendingChoice[activeQ] ?? null}
           reExplanation={reExplanations[activeQ] ?? ""}
           streamingReExplain={streamingReExplain === activeQ}
           onSubmit={submitAnswer}
@@ -380,6 +389,7 @@ export function LearnFlow({ personas, creatorSlugs }: LearnFlowProps) {
           onRetake={() => {
             setActiveQ(0);
             setResults({});
+            setPendingChoice({});
             setReExplanations({});
             setPhase("gauntlet");
           }}
@@ -596,6 +606,7 @@ function GauntletStep({
   questions,
   activeQ,
   result,
+  pendingChoice,
   reExplanation,
   streamingReExplain,
   onSubmit,
@@ -609,6 +620,7 @@ function GauntletStep({
   questions: ServerQuestion[];
   activeQ: number;
   result: AnswerResult | null;
+  pendingChoice: number | null;
   reExplanation: string;
   streamingReExplain: boolean;
   onSubmit: (choice: number) => void;
@@ -676,17 +688,20 @@ function GauntletStep({
                   result &&
                   result.your_choice &&
                   choice === result.your_choice;
+                const isPending = !result && pendingChoice === i;
                 const cardColor = isCorrect
                   ? "var(--lime)"
                   : isYours && !isCorrect
                     ? "var(--magenta)"
+                    : isPending
+                      ? "var(--accent-2)"
                     : "var(--border)";
                 return (
                   <motion.button
                     key={i}
                     type="button"
                     onClick={() => onSubmit(i)}
-                    disabled={!!result}
+                    disabled={!!result || pendingChoice != null}
                     whileHover={result ? undefined : { scale: 1.02, y: -2 }}
                     whileTap={result ? undefined : { scale: 0.98 }}
                     className="group flex items-center gap-3 rounded-2xl border-2 px-4 py-4 text-left text-base font-bold transition disabled:cursor-default"
@@ -695,6 +710,8 @@ function GauntletStep({
                         ? "color-mix(in srgb, var(--lime) 28%, var(--surface))"
                         : isYours && !isCorrect
                           ? "color-mix(in srgb, var(--magenta) 22%, var(--surface))"
+                          : isPending
+                            ? "color-mix(in srgb, var(--accent-2) 20%, var(--surface))"
                           : "var(--surface)",
                       borderColor: cardColor,
                       boxShadow: `0 5px 0 0 ${cardColor}`,
@@ -725,6 +742,14 @@ function GauntletStep({
                         style={{ color: "var(--magenta)" }}
                       >
                         ✗ your pick
+                      </span>
+                    )}
+                    {isPending && (
+                      <span
+                        className="text-xs font-bold uppercase tracking-[0.2em]"
+                        style={{ color: "var(--accent-2)" }}
+                      >
+                        checking...
                       </span>
                     )}
                   </motion.button>

@@ -1,10 +1,10 @@
-# 🕹️ Professor Decompose - The Cognitive Arena
+# 🕹️ skil_issue - The Cognitive Arena
 
 > **The LeetCode of Learning.** An addictive arcade-style study platform that identifies which pedagogical styles actually make information stick for you. Learn through "Influencer Personas," validate retention via the **Comprehension Gauntlet**, and climb the global **Dean's List** Elo leaderboard.
 
 ## 🚀 The Vertical Slice
 
-Professor Decompose isn't just a wrapper; it’s a full-stack learning ecosystem:
+skil_issue isn't just a wrapper; it's a full-stack learning ecosystem:
 
 * **Influencer Synthesis Engine:** Transform dry text into viral-style explanations (Mr. Viral, Tech Reviewer, Twitch Streamer).
 * **Cognitive Colosseum:** Daily global challenges where everyone faces the same concept and "canonical" questions for a fair leaderboard.
@@ -41,7 +41,7 @@ You will need accounts for **Supabase**, **Clerk**, **PostHog**, and at least on
 
 ```bash
 # Clone the repo
-git clone https://github.com/zakaryaahm3d/Hack.git
+git clone https://github.com/Saadia-Asghar/Skill_issue.git
 
 # Install dependencies
 bun install

@@ -2,6 +2,11 @@
 
 > **The LeetCode of Learning.** An addictive arcade-style study platform that identifies which pedagogical styles actually make information stick for you. Learn through "Influencer Personas," validate retention via the **Comprehension Gauntlet**, and climb the global **Dean's List** Elo leaderboard.
 
+## About
+
+- **Live app:** [https://skill-issue-s1oh.vercel.app/](https://skill-issue-s1oh.vercel.app/)
+- **Source code:** [https://github.com/Saadia-Asghar/Skill_issue](https://github.com/Saadia-Asghar/Skill_issue)
+
 ## 🚀 The Vertical Slice
 
 skil_issue isn't just a wrapper; it's a full-stack learning ecosystem:
